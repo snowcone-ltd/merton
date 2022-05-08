@@ -1,0 +1,26 @@
+#include <winver.h>
+
+#include "app.h"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     APP_VER_MAJOR,APP_VER_MINOR,0,0
+PRODUCTVERSION  APP_VER_MAJOR,APP_VER_MINOR,0,0
+
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904E4"
+		BEGIN
+			VALUE "ProductName",     APP_NAME "\000"
+			VALUE "LegalCopyright",  "\251 " APP_COPYRIGHT "\000"
+			VALUE "FileDescription", APP_NAME "\000"
+			VALUE "FileVersion",     APP_VER_MAJOR_STR "." APP_VER_MINOR_STR ".0.0\000"
+			VALUE "ProductVersion",  APP_VER_MAJOR_STR "." APP_VER_MINOR_STR ".0.0\000"
+		END
+	END
+
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1252
+	END
+END

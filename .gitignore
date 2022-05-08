@@ -1,0 +1,13 @@
+*.obj
+*.pdb
+*.ilk
+*.res
+*.o
+
+.vs/
+rom/
+
+/merton-files
+
+/merton
+/merton.exe
