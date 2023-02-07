@@ -141,25 +141,10 @@ const SYSTEMS = {
 };
 
 
-// Windows WebView2 specific
-
-function postToNative(str) {
-	window.chrome.webview.postMessage(str);
-}
-
-function addWebViewListener(func) {
-	window.chrome.webview.addEventListener('message', func);
-}
-
-function webviewReady() {
-	postToNative('__WEBVIEW_READY');
-}
-
-
 // Events
 
 function handleEvent(evt) {
-	postToNative(JSON.stringify(evt));
+	MTY_NativeSendText(JSON.stringify(evt));
 }
 
 
@@ -485,8 +470,8 @@ class Main extends React.Component {
 			nstate: {},
 		};
 
-		addWebViewListener(msg => {
-			const json = JSON.parse(msg.data);
+		MTY_NativeAddListener(msg => {
+			const json = JSON.parse(msg);
 
 			this.setState(json);
 
@@ -519,11 +504,6 @@ class Main extends React.Component {
 	window.addEventListener('drop', (e) => {
 		e.preventDefault();
 	});
-
-	webviewReady();
-
-	document.onkeydown = (evt) =>
-		handleEvent({name: 'key', type: 'action', value: evt.code});
 
 	ReactDOM.render(e(Main), document.body);
 })();

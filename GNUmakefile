@@ -78,7 +78,8 @@ LIBS = \
 	-framework Metal \
 	-framework IOKit \
 	-framework AudioToolbox \
-	-framework Security
+	-framework Security \
+	-framework WebKit
 
 OS = macosx
 

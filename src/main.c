@@ -10,7 +10,6 @@
 #include "app.h"
 #include "core.h"
 #include "config.h"
-#include "webview.h"
 
 #define APP_TITLE_MAX 1024
 #define MAIN_WINDOW_W 800
@@ -59,7 +58,6 @@ struct app_event {
 
 struct main {
 	struct core *core;
-	struct webview *webview;
 
 	char *content_name;
 	MTY_App *app;
@@ -76,6 +74,7 @@ struct main {
 	bool running;
 	bool paused;
 	bool audio_init;
+	bool show_ui;
 
 	MTY_RenderDesc desc;
 
@@ -520,7 +519,7 @@ static void main_post_webview_state(struct main *ctx)
 	MTY_JSONObjSetNumber(nstate, "disk", has_disks ? core_get_disk(ctx->core) : -1);
 
 	char *jmsg = MTY_JSONSerialize(msg);
-	webview_post_message(ctx->webview, jmsg);
+	MTY_WebViewSendText(ctx->app, ctx->window, jmsg);
 
 	MTY_Free(jmsg);
 	MTY_JSONDestroy(&msg);
@@ -814,164 +813,149 @@ static void *main_render_thread(void *opaque)
 
 // Main thread
 
-static void main_poll_webview_messages(struct main *ctx)
+static void main_handle_webview_text(struct main *ctx, const char *text)
 {
-	// Webview became ready, sync state
-	if (webview_became_ready(ctx->webview))
-		main_post_webview_state(ctx);
-
-	// Send any queued messages to the webview
-	webview_sync_messages(ctx->webview);
-
-	MTY_JSON *j = webview_get_message(ctx->webview);
+	MTY_JSON *j = MTY_JSONParse(text);
+	if (!j)
+		return;
 
 	#define JBUF_SIZE 128
 
-	while (j) {
-		char jbuf[JBUF_SIZE];
-		if (!MTY_JSONObjGetString(j, "type", jbuf, JBUF_SIZE))
+	char jbuf[JBUF_SIZE];
+	if (!MTY_JSONObjGetString(j, "type", jbuf, JBUF_SIZE))
+		goto except;
+
+	// Actions
+	if (!strcmp(jbuf, "action") || !strcmp(jbuf, "nstate")) {
+		if (!MTY_JSONObjGetString(j, "name", jbuf, JBUF_SIZE))
 			goto except;
 
-		// Actions
-		if (!strcmp(jbuf, "action") || !strcmp(jbuf, "nstate")) {
-			if (!MTY_JSONObjGetString(j, "name", jbuf, JBUF_SIZE))
-				goto except;
+		if (!strcmp(jbuf, "load-rom")) {
+			const char *file = MTY_OpenFile("Load ROM", ctx->app, ctx->window);
 
-			if (!strcmp(jbuf, "load-rom")) {
-				const char *file = MTY_OpenFile("Load ROM", ctx->app, ctx->window);
-
-				if (file) {
-					struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
-					evt.fetch_core = true;
-					snprintf(evt.game, MTY_PATH_MAX, "%s", file);
-					main_push_app_event(&evt, ctx);
-				}
-
-			} else if (!strcmp(jbuf, "unload-rom")) {
-				struct app_event evt = {.type = APP_EVENT_UNLOAD_GAME, .rt = true};
+			if (file) {
+				struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
+				evt.fetch_core = true;
+				snprintf(evt.game, MTY_PATH_MAX, "%s", file);
 				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "pause")) {
-				struct app_event evt = {.type = APP_EVENT_PAUSE};
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "reset")) {
-				struct app_event evt = {.type = APP_EVENT_RESET, .rt = true};
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "reset-window")) {
-				MTY_Frame frame = MTY_MakeDefaultFrame(0, 0, MAIN_WINDOW_W, MAIN_WINDOW_H, 1.0f);
-				MTY_WindowSetFrame(ctx->app, ctx->window, &frame);
-
-				MTY_JSONObjSetBool(ctx->jcfg, "fullscreen", false);
-				struct app_event evt = {.type = APP_EVENT_CONFIG};
-				evt.cfg = main_load_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "quit")) {
-				struct app_event evt = {.type = APP_EVENT_QUIT};
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "reload")) {
-				const char *name = core_get_game_path(ctx->core);
-
-				if (name) {
-					struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
-					evt.fetch_core = true;
-					snprintf(evt.game, MTY_PATH_MAX, "%s", name);
-					main_push_app_event(&evt, ctx);
-				}
-
-			} else if (!strcmp(jbuf, "core-reset")) {
-				struct app_event evt = {.type = APP_EVENT_CLEAR_OPTS, .rt = true};
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "save-state")) {
-				struct app_event evt = {.type = APP_EVENT_SAVE_STATE, .rt = true};
-
-				if (!MTY_JSONObjGetInt8(j, "value", (int8_t *) &evt.state_index))
-					goto except;
-
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "load-state")) {
-				struct app_event evt = {.type = APP_EVENT_LOAD_STATE, .rt = true};
-
-				if (!MTY_JSONObjGetInt8(j, "value", (int8_t *) &evt.state_index))
-					goto except;
-
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "disk")) {
-				struct app_event evt = {.type = APP_EVENT_SET_DISK, .rt = true};
-
-				if (!MTY_JSONObjGetInt8(j, "value", &evt.disk))
-					goto except;
-
-				main_push_app_event(&evt, ctx);
-
-			} else if (!strcmp(jbuf, "key")) {
-				if (!MTY_JSONObjGetString(j, "value", jbuf, JBUF_SIZE))
-					goto except;
-
-				if (!strcmp(jbuf, "Escape"))
-					webview_show(ctx->webview, !webview_is_showing(ctx->webview));
 			}
 
-		// Configuration change
-		} else if (!strcmp(jbuf, "cfg")) {
-			if (!MTY_JSONObjGetString(j, "name", jbuf, JBUF_SIZE))
-				goto except;
+		} else if (!strcmp(jbuf, "unload-rom")) {
+			struct app_event evt = {.type = APP_EVENT_UNLOAD_GAME, .rt = true};
+			main_push_app_event(&evt, ctx);
 
-			const MTY_JSON *jval = MTY_JSONObjGetItem(j, "value");
-			if (!jval)
-				goto except;
+		} else if (!strcmp(jbuf, "pause")) {
+			struct app_event evt = {.type = APP_EVENT_PAUSE};
+			main_push_app_event(&evt, ctx);
 
-			switch (MTY_JSONGetType(jval)) {
-				case MTY_JSON_BOOL: {
-					bool val = false;
-					MTY_JSONBool(jval, &val);
-					MTY_JSONObjSetBool(ctx->jcfg, jbuf, val);
-					break;
-				}
-				case MTY_JSON_NUMBER: {
-					double val = 0;
-					MTY_JSONNumber(jval, &val);
-					MTY_JSONObjSetNumber(ctx->jcfg, jbuf, val);
-					break;
-				}
-				case MTY_JSON_STRING: {
-					char val[JBUF_SIZE];
-					MTY_JSONString(jval, val, JBUF_SIZE);
-					MTY_JSONObjSetString(ctx->jcfg, jbuf, val);
-					break;
-				}
-				default:
-					break;
-			}
+		} else if (!strcmp(jbuf, "reset")) {
+			struct app_event evt = {.type = APP_EVENT_RESET, .rt = true};
+			main_push_app_event(&evt, ctx);
 
+		} else if (!strcmp(jbuf, "reset-window")) {
+			MTY_Frame frame = MTY_MakeDefaultFrame(0, 0, MAIN_WINDOW_W, MAIN_WINDOW_H, 1.0f);
+			MTY_WindowSetFrame(ctx->app, ctx->window, &frame);
+
+			MTY_JSONObjSetBool(ctx->jcfg, "fullscreen", false);
 			struct app_event evt = {.type = APP_EVENT_CONFIG};
 			evt.cfg = main_load_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
 			main_push_app_event(&evt, ctx);
 
-		// Core options change
-		} else if (!strcmp(jbuf, "core_opts")) {
-			struct app_event evt = {.type = APP_EVENT_CORE_OPT, .rt = true};
+		} else if (!strcmp(jbuf, "quit")) {
+			struct app_event evt = {.type = APP_EVENT_QUIT};
+			main_push_app_event(&evt, ctx);
 
-			if (!MTY_JSONObjGetString(j, "name", evt.opt.key, CORE_KEY_NAME_MAX))
+		} else if (!strcmp(jbuf, "reload")) {
+			const char *name = core_get_game_path(ctx->core);
+
+			if (name) {
+				struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
+				evt.fetch_core = true;
+				snprintf(evt.game, MTY_PATH_MAX, "%s", name);
+				main_push_app_event(&evt, ctx);
+			}
+
+		} else if (!strcmp(jbuf, "core-reset")) {
+			struct app_event evt = {.type = APP_EVENT_CLEAR_OPTS, .rt = true};
+			main_push_app_event(&evt, ctx);
+
+		} else if (!strcmp(jbuf, "save-state")) {
+			struct app_event evt = {.type = APP_EVENT_SAVE_STATE, .rt = true};
+
+			if (!MTY_JSONObjGetInt8(j, "value", (int8_t *) &evt.state_index))
 				goto except;
 
-			if (!MTY_JSONObjGetString(j, "value", evt.opt.val, CORE_OPT_NAME_MAX))
+			main_push_app_event(&evt, ctx);
+
+		} else if (!strcmp(jbuf, "load-state")) {
+			struct app_event evt = {.type = APP_EVENT_LOAD_STATE, .rt = true};
+
+			if (!MTY_JSONObjGetInt8(j, "value", (int8_t *) &evt.state_index))
+				goto except;
+
+			main_push_app_event(&evt, ctx);
+
+		} else if (!strcmp(jbuf, "disk")) {
+			struct app_event evt = {.type = APP_EVENT_SET_DISK, .rt = true};
+
+			if (!MTY_JSONObjGetInt8(j, "value", &evt.disk))
 				goto except;
 
 			main_push_app_event(&evt, ctx);
 		}
 
-		except:
+	// Configuration change
+	} else if (!strcmp(jbuf, "cfg")) {
+		if (!MTY_JSONObjGetString(j, "name", jbuf, JBUF_SIZE))
+			goto except;
 
-		MTY_JSONDestroy(&j);
-		j = webview_get_message(ctx->webview);
+		const MTY_JSON *jval = MTY_JSONObjGetItem(j, "value");
+		if (!jval)
+			goto except;
+
+		switch (MTY_JSONGetType(jval)) {
+			case MTY_JSON_BOOL: {
+				bool val = false;
+				MTY_JSONBool(jval, &val);
+				MTY_JSONObjSetBool(ctx->jcfg, jbuf, val);
+				break;
+			}
+			case MTY_JSON_NUMBER: {
+				double val = 0;
+				MTY_JSONNumber(jval, &val);
+				MTY_JSONObjSetNumber(ctx->jcfg, jbuf, val);
+				break;
+			}
+			case MTY_JSON_STRING: {
+				char val[JBUF_SIZE];
+				MTY_JSONString(jval, val, JBUF_SIZE);
+				MTY_JSONObjSetString(ctx->jcfg, jbuf, val);
+				break;
+			}
+			default:
+				break;
+		}
+
+		struct app_event evt = {.type = APP_EVENT_CONFIG};
+		evt.cfg = main_load_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
+		main_push_app_event(&evt, ctx);
+
+	// Core options change
+	} else if (!strcmp(jbuf, "core_opts")) {
+		struct app_event evt = {.type = APP_EVENT_CORE_OPT, .rt = true};
+
+		if (!MTY_JSONObjGetString(j, "name", evt.opt.key, CORE_KEY_NAME_MAX))
+			goto except;
+
+		if (!MTY_JSONObjGetString(j, "value", evt.opt.val, CORE_OPT_NAME_MAX))
+			goto except;
+
+		main_push_app_event(&evt, ctx);
 	}
+
+	except:
+
+	MTY_JSONDestroy(&j);
 }
 
 static void main_event_func(const MTY_Event *evt, void *opaque)
@@ -990,15 +974,19 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			main_push_app_event(&devt, ctx);
 			break;
 		}
+		case MTY_EVENT_WEBVIEW_KEY:
 		case MTY_EVENT_KEY: {
-			MTY_AppShowCursor(ctx->app, false);
+			// Native window only
+			if (evt->type == MTY_EVENT_KEY) {
+				MTY_AppShowCursor(ctx->app, false);
 
-			enum core_button button = NES_KEYBOARD_MAP[evt->key.key];
-			if (button != 0)
-				core_set_button(ctx->core, 0, button, evt->key.pressed);
+				enum core_button button = NES_KEYBOARD_MAP[evt->key.key];
+				if (button != 0)
+					core_set_button(ctx->core, 0, button, evt->key.pressed);
+			}
 
 			if (evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE)
-				webview_show(ctx->webview, !webview_is_showing(ctx->webview));
+				MTY_WebViewShow(ctx->app, ctx->window, !MTY_WebViewIsVisible(ctx->app, ctx->window));
 			break;
 		}
 		case MTY_EVENT_MOTION:
@@ -1035,8 +1023,14 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 
 			break;
 		}
-		case MTY_EVENT_SIZE:
-			webview_update_size(ctx->webview);
+		case MTY_EVENT_WEBVIEW_READY:
+			if (ctx->show_ui)
+				MTY_WebViewShow(ctx->app, ctx->window, true);
+
+			main_post_webview_state(ctx);
+			break;
+		case MTY_EVENT_WEBVIEW_TEXT:
+			main_handle_webview_text(ctx, evt->webviewText);
 			break;
 		default:
 			break;
@@ -1047,7 +1041,6 @@ static bool main_app_func(void *opaque)
 {
 	struct main *ctx = opaque;
 
-	main_poll_webview_messages(ctx);
 	main_poll_app_events(ctx, ctx->mt_q);
 
 	return ctx->running;
@@ -1087,6 +1080,9 @@ int32_t main(int32_t argc, char **argv)
 		evt.fetch_core = true;
 		snprintf(evt.game, MTY_PATH_MAX, "%s", argv[1]);
 		main_push_app_event(&evt, &ctx);
+
+	} else {
+		ctx.show_ui = true;
 	}
 
 	ctx.app = MTY_AppCreate(main_app_func, main_event_func, &ctx);
@@ -1102,10 +1098,17 @@ int32_t main(int32_t argc, char **argv)
 
 	MTY_WindowSetMinSize(ctx.app, ctx.window, 256, 240);
 
-	ctx.webview = webview_create(ctx.app, ctx.window,
-		MTY_JoinPath(main_asset_dir(), "tmp"), argc < 2);
-	if (!ctx.webview)
-		goto except;
+	char *dir = (char *) MTY_GetProcessDir();
+
+	for (size_t x = 0; x < strlen(dir); x++)
+		if (dir[x] == '\\')
+			dir[x] = '/';
+
+	MTY_WindowSetWebView(ctx.app, ctx.window, MTY_JoinPath(main_asset_dir(), "tmp"),
+		MTY_SprintfDL("file:///%s/src/ui/index.html", dir),
+		MTY_WEBVIEW_FLAG_DEBUG | MTY_WEBVIEW_FLAG_URL);
+
+	MTY_WebViewSetInputPassthrough(ctx.app, ctx.window, true);
 
 	MTY_Thread *rt = MTY_ThreadCreate(main_render_thread, &ctx);
 	MTY_Thread *at = MTY_ThreadCreate(main_audio_thread, &ctx);
@@ -1119,7 +1122,6 @@ int32_t main(int32_t argc, char **argv)
 
 	except:
 
-	webview_destroy(&ctx.webview);
 	MTY_RevertTimerResolution(1);
 	MTY_AppDestroy(&ctx.app);
 	MTY_QueueDestroy(&ctx.rt_q);

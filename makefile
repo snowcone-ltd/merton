@@ -4,8 +4,7 @@ BIN_NAME = merton.exe
 
 OBJS = \
 	src\main.obj \
-	src\core.obj \
-	src\webview.obj
+	src\core.obj
 
 RESOURCES = \
 	assets\$(OS)\icon.res \
