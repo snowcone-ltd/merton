@@ -72,6 +72,7 @@ LIBS = \
 	winhttp.lib \
 	crypt32.lib \
 	secur32.lib \
+	version.lib \
 	hid.lib
 
 !IFDEF DEBUG
