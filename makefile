@@ -42,7 +42,6 @@ LINK_FLAGS = \
 
 LIBS = \
 	..\libmatoya\bin\$(OS)\$(ARCH)\matoya.lib \
-	deps\WebView2LoaderStatic.lib \
 	libvcruntime.lib \
 	libucrt.lib \
 	libcmt.lib \
