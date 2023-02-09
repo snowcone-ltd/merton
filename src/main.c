@@ -694,7 +694,7 @@ static void *main_audio_thread(void *opaque)
 			if (audio)
 				MTY_AudioDestroy(&audio);
 
-			audio = MTY_AudioCreate(playback_rate, pcm_buffer, pcm_buffer * 2);
+			audio = MTY_AudioCreate(playback_rate, pcm_buffer, pcm_buffer * 2, 2, NULL, false);
 			if (!audio)
 				break;
 
