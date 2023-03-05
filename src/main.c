@@ -781,11 +781,18 @@ static void *main_render_thread(void *opaque)
 		main_poll_core_fetch(ctx);
 
 		if (MTY_WindowIsActive(ctx->app, ctx->window) || !ctx->cfg.bg_pause) {
-			if (!ctx->paused && core_game_is_loaded(ctx->core)) {
+			bool loaded = core_game_is_loaded(ctx->core);
+
+			if (!ctx->paused && loaded) {
 				core_run_frame(ctx->core);
 
 			} else {
-				main_video(NULL, 0, 0, 0, ctx);
+				if (loaded) {
+					main_video(NULL, 0, 0, 0, ctx);
+
+				} else {
+					MTY_WindowClear(ctx->app, ctx->window, 0, 0, 0, 1);
+				}
 			}
 
 			MTY_WindowPresent(ctx->app, ctx->window);
@@ -1104,7 +1111,10 @@ int32_t main(int32_t argc, char **argv)
 		if (dir[x] == '\\')
 			dir[x] = '/';
 
-	MTY_WindowSetWebView(ctx.app, ctx.window, MTY_JoinPath(main_asset_dir(), "tmp"),
+	const char *fdir = MTY_WebViewIsSteam() ? MTY_JoinPath("deps", "steam") :
+		MTY_JoinPath(main_asset_dir(), "tmp");
+
+	MTY_WindowSetWebView(ctx.app, ctx.window, fdir,
 		MTY_SprintfDL("file:///%s/src/ui/index.html", dir),
 		MTY_WEBVIEW_FLAG_DEBUG | MTY_WEBVIEW_FLAG_URL);
 

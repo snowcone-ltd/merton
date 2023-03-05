@@ -57,8 +57,10 @@ const MENU_ITEMS = [
 		{name: 'gfx', type: 'cfg', etype: 'dropdown', label: 'Graphics', opts: [
 			{label: 'OpenGL', value: 1},
 			{label: 'Vulkan', value: 2},
+			{label: 'D3D9', value: 3},
 			{label: 'D3D11', value: 4},
 			{label: 'D3D12', value: 5},
+			{label: 'Metal', value: 6},
 		]},
 		{name: 'filter', type: 'cfg', etype: 'dropdown', label: 'Filter', opts: [
 			{label: 'Nearest', value: 0},
@@ -144,7 +146,8 @@ const SYSTEMS = {
 // Events
 
 function handleEvent(evt) {
-	MTY_NativeSendText(JSON.stringify(evt));
+	if (window.MTY_NativeSendText)
+		window.MTY_NativeSendText(JSON.stringify(evt));
 }
 
 
@@ -470,7 +473,7 @@ class Main extends React.Component {
 			nstate: {},
 		};
 
-		MTY_NativeAddListener(msg => {
+		window.MTY_NativeListener = msg => {
 			const json = JSON.parse(msg);
 
 			this.setState(json);
@@ -480,7 +483,7 @@ class Main extends React.Component {
 			menuItems.push(coreOptsToMenu(json.core_opts));
 
 			this.setState({menuItems: menuItems});
-		});
+		};
 	}
 
 	render() {
