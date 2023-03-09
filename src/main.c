@@ -15,6 +15,12 @@
 #define MAIN_WINDOW_W 800
 #define MAIN_WINDOW_H 600
 
+#if defined(MTN_DEBUG)
+	#define MTN_DEBUG_WEBVIEW true
+#else
+	#define MTN_DEBUG_WEBVIEW false
+#endif
+
 enum app_event_type {
 	APP_EVENT_TITLE       = 1,
 	APP_EVENT_LOAD_GAME   = 2,
@@ -1114,10 +1120,10 @@ int32_t main(int32_t argc, char **argv)
 	const char *fdir = MTY_WebViewIsSteam() ? MTY_JoinPath("deps", "steam") :
 		MTY_JoinPath(main_asset_dir(), "tmp");
 
-	MTY_WindowSetWebView(ctx.app, ctx.window, fdir,
-		MTY_SprintfDL("file:///%s/src/ui/index.html", dir),
-		MTY_WEBVIEW_FLAG_DEBUG | MTY_WEBVIEW_FLAG_URL);
+	MTY_WindowSetWebView(ctx.app, ctx.window, fdir, MTN_DEBUG_WEBVIEW);
 
+	const char *url = MTY_SprintfDL("file:///%s/src/ui/index.html", dir);
+	MTY_WebViewNavigate(ctx.app, ctx.window, url, true);
 	MTY_WebViewSetInputPassthrough(ctx.app, ctx.window, true);
 
 	MTY_Thread *rt = MTY_ThreadCreate(main_render_thread, &ctx);

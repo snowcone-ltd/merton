@@ -76,6 +76,7 @@ LIBS = \
 
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Oy- /Ob0 /Zi
+DEFS = $(DEFS) -DMTN_DEBUG
 LINK_FLAGS = $(LINK_FLAGS) /debug
 !ELSE
 FLAGS = $(FLAGS) /O2 /GS- /Gw /Gy
