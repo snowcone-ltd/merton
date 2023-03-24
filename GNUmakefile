@@ -84,9 +84,9 @@ LIBS = \
 OS = macosx
 
 FLAGS := $(FLAGS) \
-	-mmacosx-version-min=10.14 \
+	-mmacosx-version-min=10.15 \
 	-isysroot $(shell xcrun --sdk macosx --show-sdk-path) \
-	-arch x86_64
+	-arch $(ARCH)
 endif
 endif
 
