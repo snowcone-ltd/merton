@@ -82,11 +82,13 @@ LIBS = \
 	-framework WebKit
 
 OS = macosx
+MIN_VER = 10.15
 
 FLAGS := $(FLAGS) \
-	-mmacosx-version-min=10.15 \
-	-isysroot $(shell xcrun --sdk macosx --show-sdk-path) \
+	-m$(OS)-version-min=$(MIN_VER) \
+	-isysroot $(shell xcrun --sdk $(OS) --show-sdk-path) \
 	-arch $(ARCH)
+
 endif
 endif
 
