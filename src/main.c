@@ -1098,7 +1098,7 @@ int32_t main(int32_t argc, char **argv)
 		ctx.show_ui = true;
 	}
 
-	ctx.app = MTY_AppCreate(main_app_func, main_event_func, &ctx);
+	ctx.app = MTY_AppCreate(0, main_app_func, main_event_func, &ctx);
 	MTY_AppSetTimeout(ctx.app, 1);
 
 	MTY_Frame frame = ctx.cfg.window;
