@@ -54,12 +54,8 @@ LD_FLAGS = \
 	-nodefaultlibs
 
 LIBS = \
-	-ldl \
-	-lpthread \
-	-lm \
 	-lc \
-	-lgcc_s \
-	-latomic
+	-lm
 
 OS = linux
 endif
@@ -70,15 +66,12 @@ endif
 ifeq ($(UNAME_S), Darwin)
 
 LIBS = \
-	-lc \
 	-framework AppKit \
 	-framework QuartzCore \
 	-framework Carbon \
-	-framework OpenGL \
 	-framework Metal \
 	-framework IOKit \
 	-framework AudioToolbox \
-	-framework Security \
 	-framework WebKit
 
 OS = macosx
