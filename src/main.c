@@ -263,8 +263,8 @@ static void main_fetch_core(struct main *ctx, const char *file, const char *name
 	snprintf(ctx->core_fetch.name, MTY_PATH_MAX, "%s", name);
 	snprintf(ctx->core_fetch.file, MTY_PATH_MAX, "%s", file);
 
-	MTY_HttpAsyncRequest(&ctx->core_fetch.req, "merton.matoya.group", 0, true,
-		"GET", MTY_SprintfDL("/cores/%s", file), NULL, NULL, 0, 10000, false);
+	const char *url = MTY_SprintfDL("https://merton.matoya.group/cores/%s", file);
+	MTY_HttpAsyncRequest(&ctx->core_fetch.req, url, "GET", NULL, NULL, 0, NULL, 10000, false);
 }
 
 static void main_poll_core_fetch(struct main *ctx)
