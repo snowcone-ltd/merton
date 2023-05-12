@@ -263,7 +263,7 @@ static void main_fetch_core(struct main *ctx, const char *file, const char *name
 	snprintf(ctx->core_fetch.name, MTY_PATH_MAX, "%s", name);
 	snprintf(ctx->core_fetch.file, MTY_PATH_MAX, "%s", file);
 
-	const char *url = MTY_SprintfDL("https://merton.matoya.group/cores/%s", file);
+	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s", file);
 	MTY_HttpAsyncRequest(&ctx->core_fetch.req, url, "GET", NULL, NULL, 0, NULL, 10000, false);
 }
 

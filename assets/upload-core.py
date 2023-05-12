@@ -17,7 +17,7 @@ if __name__ == '__main__':
 	gz_tmp = open(gz_tmp_name, 'rb')
 
 	s3 = boto3.client('s3')
-	s3.put_object(ACL='public-read', Body=gz_tmp, Bucket='merton.matoya.group',
+	s3.put_object(ACL='public-read', Body=gz_tmp, Bucket='www.snowcone.ltd',
 		Key='cores/' + os.path.basename(file_name), ContentEncoding='gzip')
 
 	gz_tmp.close()
