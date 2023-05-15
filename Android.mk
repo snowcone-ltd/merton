@@ -9,19 +9,16 @@ include $(PREBUILT_STATIC_LIBRARY)
 FLAGS = \
 	-Wall \
 	-Wextra \
+	-Wshadow \
 	-Wno-unused-parameter \
-	-Wno-switch \
-	-Wno-atomic-alignment \
-	-Wno-unused-function \
+	-std=c99 \
 	-fPIC
 
 ifdef DEBUG
-FLAGS := $(FLAGS) -O0 -g
+LOCAL_CLFAGS := $(FLAGS) -O0 -g3
 else
-FLAGS := $(FLAGS) -O3 -fvisibility=hidden
-ifdef LTO
-FLAGS := $(FLAGS) -flto
-endif
+LOCAL_CFLAGS := $(FLAGS) -O3 -flto -fvisibility=hidden
+LOCAL_LDFLAGS := -flto
 endif
 
 LOCAL_MODULE_FILENAME := libmerton
@@ -32,22 +29,10 @@ LOCAL_LDLIBS := -lGLESv3 -lEGL -landroid -laaudio -llog
 LOCAL_C_INCLUDES = \
 	. \
 	src \
-	src/app/deps \
 	../libmatoya/src
 
-DEFS = \
-	-DGL_ES \
-	-DMTY_GL_EXTERNAL \
-	-D_POSIX_C_SOURCE=200112L
-
-LOCAL_CFLAGS = $(DEFS) $(FLAGS)
-
 LOCAL_SRC_FILES := \
-	src/nes/cart.c \
-	src/nes/apu.c \
-	src/nes/sys.c \
-	src/nes/cpu.c \
-	src/nes/ppu.c \
-	src/app/main.c
+	src/main.c \
+	src/core.c
 
 include $(BUILD_SHARED_LIBRARY)

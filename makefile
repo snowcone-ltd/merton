@@ -12,8 +12,8 @@ RESOURCES = \
 
 INCLUDES = \
 	-I. \
-	-I..\libmatoya\src \
-	-Isrc
+	-Isrc \
+	-I..\libmatoya\src
 
 DEFS = \
 	-DUNICODE \

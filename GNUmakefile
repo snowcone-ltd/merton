@@ -1,48 +1,56 @@
 UNAME_S = $(shell uname -s)
 ARCH = $(shell uname -m)
-BIN_NAME = merton
-
-.m.o:
-	$(CC) $(OCFLAGS)  -c -o $@ $<
+NAME = merton
 
 OBJS = \
 	src/main.o \
 	src/core.o
 
-FLAGS = \
-	-Wall \
-	-Wextra \
-	-Wno-unused-function \
-	-Wno-unused-result \
-	-Wno-unused-value \
-	-Wno-unused-parameter
-
 INCLUDES = \
 	-I. \
 	-Isrc \
-	-Isrc/app/deps \
 	-I../libmatoya/src
 
-DEFS = \
-	-D_POSIX_C_SOURCE=200112L
+FLAGS = \
+	-Wall \
+	-Wextra \
+	-Wshadow \
+	-Wno-unused-parameter \
+	-std=c99 \
+	-fPIC
+
+ifdef DEBUG
+FLAGS := $(FLAGS) -O0 -g3
+else
+FLAGS := $(FLAGS) -O3 -g0 -flto -fvisibility=hidden
+LD_FLAGS := -flto
+endif
 
 ############
 ### WASM ###
 ############
+
+# github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk
+
 ifdef WASM
 
-WASI_SDK = $(HOME)/wasi-sdk-12.0
+WASI_SDK = $(HOME)/wasi-sdk
 
-LD_FLAGS := \
+CC = $(WASI_SDK)/bin/clang
+
+TARGET = web
+ARCH := wasm32
+
+LD_FLAGS := $(LD_FLAGS) \
 	-Wl,--allow-undefined \
 	-Wl,--export-table \
+	-Wl,--import-memory,--export-memory,--max-memory=1073741824 \
 	-Wl,-z,stack-size=$$((8 * 1024 * 1024))
 
-CC = $(WASI_SDK)/bin/clang --sysroot=$(WASI_SDK)/share/wasi-sysroot
-CXX = $(CC)
-
-OS = web
-ARCH := wasm32
+FLAGS := $(FLAGS) \
+	--sysroot=$(WASI_SDK)/share/wasi-sysroot \
+	--target=wasm32-wasi-threads \
+	-pthread
 
 else
 #############
@@ -50,20 +58,36 @@ else
 #############
 ifeq ($(UNAME_S), Linux)
 
-LD_FLAGS = \
-	-nodefaultlibs
+TARGET = linux
 
 LIBS = \
 	-lc \
 	-lm
 
-OS = linux
+LD_FLAGS = \
+	-nodefaultlibs
+
 endif
 
 #############
-### MACOS ###
+### APPLE ###
 #############
 ifeq ($(UNAME_S), Darwin)
+
+ifndef TARGET
+TARGET = macosx
+endif
+
+ifndef ARCH
+ARCH = x86_64
+endif
+
+ifeq ($(TARGET), macosx)
+MIN_VER = 10.15
+else
+MIN_VER = 13.0
+FLAGS := $(FLAGS) -fembed-bitcode
+endif
 
 LIBS = \
 	-framework AppKit \
@@ -74,108 +98,53 @@ LIBS = \
 	-framework AudioToolbox \
 	-framework WebKit
 
-OS = macosx
-MIN_VER = 10.15
-
 FLAGS := $(FLAGS) \
-	-m$(OS)-version-min=$(MIN_VER) \
-	-isysroot $(shell xcrun --sdk $(OS) --show-sdk-path) \
+	-m$(TARGET)-version-min=$(MIN_VER) \
+	-isysroot $(shell xcrun --sdk $(TARGET) --show-sdk-path) \
 	-arch $(ARCH)
 
 endif
 endif
 
-LIBS := ../libmatoya/bin/$(OS)/$(ARCH)/libmatoya.a $(LIBS)
+STATIC_LIBS = \
+	../libmatoya/bin/$(TARGET)/$(ARCH)/libmatoya.a
 
-ifdef DEBUG
-FLAGS := $(FLAGS) -O0 -g
-else
-FLAGS := $(FLAGS) -O3 -fvisibility=hidden
-ifdef LTO
-FLAGS := $(FLAGS) -flto
-LD_FLAGS := $(LD_FLAGS) -flto
-endif
-endif
-
-CFLAGS = $(INCLUDES) $(DEFS) $(FLAGS) -std=c99
-OCFLAGS = $(CFLAGS) -fobjc-arc
+CFLAGS = $(INCLUDES) $(FLAGS)
 
 all: clean clear
 	make objs -j4
 
-web: all
-	ln -sf ../libmatoya
-	python3 -m http.server
-
 objs: $(OBJS)
-	$(CC) -o $(BIN_NAME) $(OBJS) $(LIBS) $(LD_FLAGS)
+	$(CC) -o $(NAME) $(OBJS) $(STATIC_LIBS) $(LIBS) $(LD_FLAGS)
 
 ###############
 ### ANDROID ###
 ###############
 
-### Downloads ###
-# sudo apt install openjdk-11-jre-headless
-# https://developer.android.com/ndk/downloads -> Put in ~/android-ndk-xxx
-# https://developer.android.com/studio#command-tools -> Put in ~/android-home/cmdline-tools
+# developer.android.com/ndk/downloads -> ~/android-ndk
 
-### Licenses ###
-# Run 'ANDROID_SDK_ROOT/tools/bin/sdkmanager --licenses' to accept licenses
+ifndef ANDROID_NDK_ROOT
+ANDROID_NDK_ROOT = $(HOME)/android-ndk
+endif
 
-### Windows ###
-# https://developer.android.com/studio/run/win-usb -> This may help
-# https://developer.android.com/studio/releases/platform-tools
-# If using WSL, adb.exe must be run to connect to the device on the Windows size,
-# then WSL can communicate with it over the local network
+ifndef ABI
+ABI = all
+endif
 
-ANDROID_PROJECT = android
-ANDROID_PACKAGE = tmp.domain.$(BIN_NAME)
-
-ANDROID_NDK = $(HOME)/android-ndk-r21d
-export ANDROID_HOME = $(HOME)/android-home
-export ANDROID_SDK_ROOT = $(ANDROID_HOME)/cmdline-tools
-
-gradle:
-	@java \
-		-classpath $(ANDROID_PROJECT)/gradle/wrapper/gradle-wrapper.jar \
-		org.gradle.wrapper.GradleWrapperMain \
-		-p $(ANDROID_PROJECT) \
-		$(CMD)
-
-ndk:
-	@mkdir -p $(ANDROID_PROJECT)/app/libs
-	@$(ANDROID_NDK)/ndk-build -j4 \
-		NDK_PROJECT_PATH=. \
+android: clean clear $(SHADERS)
+	@$(ANDROID_NDK_ROOT)/ndk-build -j4 \
 		APP_BUILD_SCRIPT=Android.mk \
-		APP_OPTIM=release \
-		APP_PLATFORM=android-26 \
-		NDK_OUT=$(ANDROID_PROJECT)/build \
-		NDK_LIBS_OUT=$(ANDROID_PROJECT)/app/libs \
-		--no-print-directory \
-		| grep -v 'fcntl(): Operation not supported'
-
-adb-run:
-	@$(ANDROID_HOME)/platform-tools/adb logcat -c
-	@$(ANDROID_HOME)/platform-tools/adb \
-		shell am start -n $(ANDROID_PACKAGE)/$(ANDROID_PACKAGE).MainActivity
-
-adb-kill:
-	@$(ANDROID_HOME)/platform-tools/adb shell am force-stop $(ANDROID_PACKAGE)
-
-adb-log:
-	@$(ANDROID_HOME)/platform-tools/adb logcat $(ANDROID_PACKAGE) | grep ' E \|MTY'
-
-android: clear
-	@make --no-print-directory adb-kill
-	@make --no-print-directory ndk
-	@make --no-print-directory gradle CMD=installDebug
-	@make --no-print-directory adb-run
-	@make --no-print-directory adb-log
+		APP_PLATFORM=android-28 \
+		APP_ABI=$(ABI) \
+		NDK_PROJECT_PATH=. \
+		NDK_OUT=android/build \
+		NDK_LIBS_OUT=android/app/libs \
+		--no-print-directory
 
 clean:
-	@rm -rf libmatoya
-	@rm -rf $(ANDROID_PROJECT)/build
-	@rm -rf $(BIN_NAME)
+	@rm -rf android/build
+	@rm -rf android/app/libs
+	@rm -rf $(NAME)
 	@rm -rf $(OBJS)
 
 clear:
