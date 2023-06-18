@@ -1021,10 +1021,10 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			core_set_button(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
 			core_set_button(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
 			core_set_button(ctx->core, 0, CORE_BUTTON_R, c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_U, MTY_DPAD_UP(c));
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_D, MTY_DPAD_DOWN(c));
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_L, MTY_DPAD_LEFT(c));
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_R, MTY_DPAD_RIGHT(c));
+			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_U, c->buttons[MTY_CBUTTON_DPAD_UP]);
+			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
+			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
+			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
 
 			core_set_button(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
 			core_set_button(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
