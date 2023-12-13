@@ -57,10 +57,9 @@ const MENU_ITEMS = [
 		{name: 'gfx', type: 'cfg', etype: 'dropdown', label: 'Graphics', opts: [
 			{label: 'OpenGL', value: 1},
 			{label: 'Vulkan', value: 2},
-			{label: 'D3D9', value: 3},
-			{label: 'D3D11', value: 4},
-			{label: 'D3D12', value: 5},
-			{label: 'Metal', value: 6},
+			{label: 'D3D11', value: 3},
+			{label: 'D3D12', value: 4},
+			{label: 'Metal', value: 5},
 		]},
 		{name: 'filter', type: 'cfg', etype: 'dropdown', label: 'Filter', opts: [
 			{label: 'Nearest', value: 0},
