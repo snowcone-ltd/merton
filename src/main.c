@@ -315,33 +315,44 @@ static void main_video(const void *buf, uint32_t width, uint32_t height, size_t 
 		ctx->desc.imageHeight = height;
 		ctx->desc.cropWidth = width;
 		ctx->desc.cropHeight = height;
-		ctx->desc.filter = ctx->cfg.filter;
-
-		// Effects
-		if (ctx->cfg.filter == MTY_FILTER_LINEAR && ctx->cfg.sharpen > 0) {
-			ctx->desc.effects[0] = MTY_EFFECT_SHARPEN;
-			ctx->desc.levels[0] = (float) ctx->cfg.sharpen / 100.0f;
-		}
-
-		if (ctx->cfg.scanlines > 0) {
-			ctx->desc.effects[1] = MTY_EFFECT_SCANLINES;
-			ctx->desc.levels[1] = (float) ctx->cfg.scanlines / 100.0f;
-		}
-
-		// Integer scaling
-		if (ctx->cfg.int_scaling && width > 0 && height > 0) {
-			MTY_Size size = MTY_WindowGetSize(ctx->app, ctx->window);
-
-			uint32_t w_multi = size.w / width;
-			uint32_t h_multi = size.h / height;
-
-			ctx->desc.scale = (float) (w_multi < h_multi ? w_multi : h_multi);
-		}
-
-		// Square pixels
-		ctx->desc.aspectRatio = !ctx->cfg.square_pixels ?
-			core_get_aspect_ratio(ctx->core) : height > 0 ? (float) width / height : 1;
 	}
+
+	// Effects
+	ctx->desc.filter = ctx->cfg.filter;
+
+	if (ctx->cfg.filter == MTY_FILTER_LINEAR && ctx->cfg.sharpen > 0) {
+		ctx->desc.effects[0] = MTY_EFFECT_SHARPEN;
+		ctx->desc.levels[0] = (float) ctx->cfg.sharpen / 100.0f;
+
+	} else {
+		ctx->desc.effects[0] = MTY_EFFECT_NONE;
+	}
+
+	if (ctx->cfg.scanlines > 0) {
+		ctx->desc.effects[1] = MTY_EFFECT_SCANLINES;
+		ctx->desc.levels[1] = (float) ctx->cfg.scanlines / 100.0f;
+
+	} else {
+		ctx->desc.effects[1] = MTY_EFFECT_NONE;
+	}
+
+	// Integer scaling
+	if (ctx->cfg.int_scaling && ctx->desc.imageWidth > 0 && ctx->desc.imageHeight > 0) {
+		MTY_Size size = MTY_WindowGetSize(ctx->app, ctx->window);
+
+		uint32_t w_multi = size.w / ctx->desc.imageWidth;
+		uint32_t h_multi = size.h / ctx->desc.imageHeight;
+
+		ctx->desc.scale = (float) (w_multi < h_multi ? w_multi : h_multi);
+
+	} else {
+		ctx->desc.scale = 0;
+	}
+
+	// Square pixels
+	ctx->desc.aspectRatio = !ctx->cfg.square_pixels ?
+		core_get_aspect_ratio(ctx->core) : ctx->desc.imageHeight > 0 ?
+		(float) ctx->desc.imageWidth / ctx->desc.imageHeight : 1;
 
 	MTY_WindowDrawQuad(ctx->app, ctx->window, buf, &ctx->desc);
 }
