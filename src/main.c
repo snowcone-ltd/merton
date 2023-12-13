@@ -434,10 +434,27 @@ static void main_save_sram(struct core *core, const char *content_name)
 	void *sram = core_get_sram(core, &size);
 	if (sram) {
 		const char *name = MTY_SprintfDL("%s.srm", content_name);
+		const char *dir = core_get_save_dir(core);
 
-		MTY_WriteFile(MTY_JoinPath(core_get_save_dir(core), name), sram, size);
+		MTY_Mkdir(dir);
+		MTY_WriteFile(MTY_JoinPath(dir, name), sram, size);
 		MTY_Free(sram);
 	}
+}
+
+static void main_unload(struct main *ctx, bool unload_core)
+{
+	main_save_sram(ctx->core, ctx->content_name);
+
+	if (unload_core) {
+		core_unload(&ctx->core);
+
+	} else {
+		core_unload_game(ctx->core);
+	}
+
+	MTY_Free(ctx->content_name);
+	ctx->content_name = NULL;
 }
 
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
@@ -453,11 +470,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	// If core is on the system, try to use it
 	if (MTY_FileExists(core_path)) {
-		main_save_sram(ctx->core, ctx->content_name);
-		MTY_Free(ctx->content_name);
-		ctx->content_name = NULL;
-
-		core_unload(&ctx->core);
+		main_unload(ctx, true);
 
 		ctx->core = core_load(core_path, main_asset_dir());
 		if (!ctx->core)
@@ -613,7 +626,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				ctx->paused = false;
 				break;
 			case APP_EVENT_UNLOAD_GAME: {
-				core_unload_game(ctx->core);
+				main_unload(ctx, false);
 
 				struct app_event tevt = {.type = APP_EVENT_TITLE};
 				snprintf(tevt.title, APP_TITLE_MAX, "%s", APP_NAME);
@@ -826,10 +839,7 @@ static void *main_render_thread(void *opaque)
 
 	MTY_WindowSetGFX(ctx->app, ctx->window, MTY_GFX_NONE, false);
 
-	main_save_sram(ctx->core, ctx->content_name);
-	MTY_Free(ctx->content_name);
-
-	core_unload(&ctx->core);
+	main_unload(ctx, true);
 
 	return NULL;
 }
