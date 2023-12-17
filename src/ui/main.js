@@ -9,8 +9,8 @@ const MENU_ITEMS = [
 		{name: 'load-rom', type: 'action', etype: 'label', label: 'Load ROM'},
 		{name: 'unload-rom', type: 'action', etype: 'label', label: 'Unload ROM', needsRunning: true},
 		{name: 'reload', type: 'action', etype: 'label', label: 'Reload ROM', needsRunning: true},
-		{etype: 'separator'},
 		{name: 'reset', type: 'nstate', etype: 'label', label: 'Reset', needsRunning: true},
+		{etype: 'separator'},
 		{name: 'pause', type: 'nstate', etype: 'checkbox', label: 'Pause Emulation', needsRunning: true},
 		{name: 'bg_pause', type: 'cfg', etype: 'checkbox', label: 'Background Pause'},
 		{name: 'console', type: 'cfg', etype: 'checkbox', label: 'Console Window'},
@@ -156,9 +156,8 @@ function Dropdown(props) {
 	const mitem = props.mitem;
 
 	const style = {
-		margin: '0 0 1.3rem 0',
-		color: `rgba(180, 180, 180, 1.0)`,
-		display: 'block',
+		margin: '1rem 0 1.3rem 0',
+		color: `rgba(190, 190, 190, 1.0)`,
 	};
 
 	let lstyle = {
@@ -169,10 +168,10 @@ function Dropdown(props) {
 
 	let ddbstyle = {
 		margin: '.4rem 0 0 0',
-		padding: '.1rem',
+		padding: '.15rem .3rem',
 		cursor: 'pointer',
 		width: '100%',
-		borderRadius: '.3rem',
+		borderRadius: '.4rem',
 		letterSpacing: '.03rem',
 		fontSize: '.9rem',
 		fontFamily: 'sans-serif',
@@ -187,6 +186,12 @@ function Dropdown(props) {
 		props.setValue(mitem.type, mitem.name, value);
 	};
 
+	let onClick = (evt) => {
+		if (!evt.isTrusted) {
+			// TODO This is a nav click, pop a modal
+		}
+	}
+
 	if (props.disabled) {
 		lstyle.color = 'rgba(120, 120, 120, 1.0)';
 		ddbstyle.cursor = '';
@@ -200,7 +205,8 @@ function Dropdown(props) {
 
 	return e('div', {style: style}, [
 		e('div', {style: lstyle}, mitem.label),
-		e('select', {style: ddbstyle, onChange: onChange, value: props.selected, disabled: props.disabled}, sitems),
+		e('select', {style: ddbstyle, onChange: onChange, onClick: onClick, value: props.selected,
+			disabled: props.disabled, 'nav-item': 1, tabindex: props.disabled ? false : -1}, sitems),
 	]);
 }
 
@@ -208,21 +214,22 @@ function Checkbox(props) {
 	const mitem = props.mitem;
 
 	let style = {
-		margin: '0 0 1rem 0',
-		color: `rgba(180, 180, 180, 1.0)`,
+		cursor: 'pointer',
+		margin: '.3rem 0 0 0',
+		padding: '.4rem',
+		color: `rgba(190, 190, 190, 1.0)`,
 		display: 'block',
-	};
-
-	const lstyle = {
-		display: 'inline-block',
+		borderRadius: '.5rem',
 	};
 
 	let cbstyle = {
 		margin: '0 .5rem 0 0',
 		padding: '0',
-		cursor: 'pointer',
+		width: '.8rem',
+		height: '.8rem',
 		position: 'relative',
-		top: '.1rem',
+		pointerEvents: 'none',
+		top: '.08rem',
 	};
 
 	let onChange = (evt) => {
@@ -230,34 +237,41 @@ function Checkbox(props) {
 		props.setValue(mitem.type, mitem.name, evt.target.checked);
 	};
 
+	let onClick = (evt) => {
+		evt.preventDefault();
+
+		let input = evt.target.control;
+
+		if (!input.disabled) {
+			input.checked = !input.checked;
+			onChange({target: input});
+		}
+	};
+
 	if (props.disabled) {
 		style.color = `rgba(120, 120, 120, 1.0)`;
-		cbstyle.cursor = '';
+		style.cursor = '';
 		onChange = () => {};
 	}
 
-	return e('div', {style: style}, [
-		e('input', {style: cbstyle, type: 'checkbox', onChange: onChange,
-			checked: props.checked, disabled: props.disabled}),
-		e('div', {style: lstyle}, mitem.label),
-	]);
+	let labelProps = {style: style, onClick: onClick, disabled: props.disabled,
+		'nav-item': 1, tabindex: props.disabled ? false : -1};
+
+	let checkboxProps = {style: cbstyle, type: 'checkbox', onChange: onChange,
+			checked: props.checked, disabled: props.disabled};
+
+	return e('label', labelProps, e('input', checkboxProps), mitem.label);
 }
 
 function ActionButton (props) {
 	const mitem = props.mitem;
 
 	let style = {
-		margin: '0 0 .9rem 0',
-		padding: '.1rem',
 		cursor: 'pointer',
-		background: `rgba(0, 0, 0, 0)`,
-		color: `rgba(180, 180, 180, 1.0)`,
-		border: 'none',
-		display: 'block',
-		letterSpacing: 'inherit',
-		fontSize: 'inherit',
-		fontFamily: 'inherit',
-		textAlign: 'inherit',
+		margin: '0.3rem auto 0 auto',
+		padding: '.4rem',
+		color: `rgba(190, 190, 190, 1.0)`,
+		borderRadius: '.5rem',
 	};
 
 	let onClick = () =>
@@ -269,7 +283,8 @@ function ActionButton (props) {
 		onClick = () => {};
 	}
 
-	return e('button', {style: style, onClick: onClick, disabled: props.disabled}, mitem.label);
+	return e('div', {style: style, onClick: onClick, disabled: props.disabled,
+		'nav-item': 1, tabindex: props.disabled ? false : -1}, mitem.label);
 }
 
 function Separator() {
@@ -277,7 +292,7 @@ function Separator() {
 		height: '.025rem',
 		width: '100%',
 		background: `rgba(100, 100, 100, ${OPACITY})`,
-		margin: '0 0 1rem 0',
+		margin: '.6rem 0',
 	};
 
 	return e('div', {style: style});
@@ -289,41 +304,34 @@ function Separator() {
 function MenuButton(props) {
 	let style = {
 		cursor: 'pointer',
-		padding: '.4rem',
-		width: '7rem',
 		margin: '.3rem auto 0 auto',
+		padding: '.4rem',
 		borderRadius: '.5rem',
-		background: `rgba(0, 0, 0, 0)`,
-		border: `none`,
-		display: 'block',
-		color: 'inherit',
-		letterSpacing: 'inherit',
-		fontSize: 'inherit',
-		fontFamily: 'inherit',
-		textAlign: 'inherit',
 	};
 
 	if (props.selected)
-		style.background = `rgba(80, 80, 80, ${OPACITY})`;
+		style.background = `rgba(70, 70, 70, ${OPACITY})`;
 
-	let onClick = () =>
+	let onClick = () => {
+		NAV_ResetGroup(1);
 		props.setAppState({menuIndex: props.index});
+	}
 
 	if (props.disabled) {
-		style.background = 'rgba(0, 0, 0, 0)';
 		style.cursor = '';
 		style.color = 'rgba(120, 120, 120, 1.0)';
 		onClick = () => {};
 	}
 
-	return e('button', {style: style, onClick: onClick, disabled: props.disabled}, props.name);
+	return e('div', {style: style, onClick: onClick, disabled: props.disabled,
+		'nav-item': 0, 'nav-auto': 1, tabindex: props.disabled ? false : -1}, props.name);
 }
 
 function MenuLeft(props) {
 	const style = {
 		width: '10rem',
 		height: '100%',
-		paddingTop: '.7rem',
+		padding: '.7rem 1rem',
 		background: `rgba(40, 40, 40, ${OPACITY})`,
 		borderRight: `.025rem solid rgba(70, 70, 70, ${OPACITY})`,
 		boxSizing: 'border-box',
@@ -344,9 +352,9 @@ function MenuLeft(props) {
 
 function MenuRight(props) {
 	const style = {
+		minWidth: '13.5rem',
 		height: '100%',
-		minWidth: '13rem',
-		padding: '1.4rem',
+		padding: '.7rem 1.2rem',
 		background: `rgba(55, 55, 55, ${OPACITY})`,
 		borderRight: `.025rem solid rgba(70, 70, 70, ${OPACITY})`,
 		boxSizing: 'border-box',
@@ -475,13 +483,22 @@ class Main extends React.Component {
 		window.MTY_NativeListener = msg => {
 			const json = JSON.parse(msg);
 
-			this.setState(json);
+			switch (json.type) {
+				case 'state': {
+					this.setState(json);
 
-			let menuItems = [...MENU_ITEMS];
-			menuItems.push(systemsToMenu());
-			menuItems.push(coreOptsToMenu(json.core_opts));
+					let menuItems = [...MENU_ITEMS];
+					menuItems.push(systemsToMenu());
+					menuItems.push(coreOptsToMenu(json.core_opts));
 
-			this.setState({menuItems: menuItems});
+					this.setState({menuItems: menuItems});
+					break;
+				}
+				case 'controller': {
+					NAV_Controller(json);
+					break;
+				}
+			}
 		};
 	}
 
@@ -508,4 +525,6 @@ class Main extends React.Component {
 	});
 
 	ReactDOM.render(e(Main), document.body);
+
+	NAV_Init();
 })();

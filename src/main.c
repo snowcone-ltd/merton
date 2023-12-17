@@ -77,6 +77,7 @@ struct main {
 	struct config cfg;
 	uint8_t last_save_index;
 	uint8_t last_load_index;
+	bool menu_visible;
 	bool running;
 	bool paused;
 	bool audio_init;
@@ -505,6 +506,7 @@ static void main_post_webview_state(struct main *ctx)
 {
 	// Configuration
 	MTY_JSON *msg = MTY_JSONObjCreate();
+	MTY_JSONObjSetString(msg, "type", "state");
 	MTY_JSONObjSetItem(msg, "cfg", MTY_JSONDuplicate(ctx->jcfg));
 
 	// Core options
@@ -810,31 +812,28 @@ static void *main_render_thread(void *opaque)
 		main_poll_app_events(ctx, ctx->rt_q);
 		main_poll_core_fetch(ctx);
 
-		if (MTY_WindowIsActive(ctx->app, ctx->window) || !ctx->cfg.bg_pause) {
-			bool loaded = core_game_is_loaded(ctx->core);
+		bool loaded = core_game_is_loaded(ctx->core);
+		bool active = !ctx->paused && (!ctx->cfg.bg_pause ||
+			MTY_WindowIsActive(ctx->app, ctx->window));
 
-			if (!ctx->paused && loaded) {
-				core_run_frame(ctx->core);
-
-			} else {
-				if (loaded) {
-					main_video(NULL, 0, 0, 0, ctx);
-
-				} else {
-					MTY_WindowClear(ctx->app, ctx->window, 0, 0, 0, 1);
-				}
-			}
-
-			MTY_WindowPresent(ctx->app, ctx->window);
-
-			double diff = MTY_TimeDiff(stamp, MTY_GetTime());
-
-			if (!ctx->cfg.vsync)
-				MTY_PreciseSleep(1000.0 / core_get_frame_rate(ctx->core) - diff, 4.0);
+		if (active && loaded) {
+			core_run_frame(ctx->core);
 
 		} else {
-			MTY_Sleep(8);
+			if (loaded) {
+				main_video(NULL, 0, 0, 0, ctx);
+
+			} else {
+				MTY_WindowClear(ctx->app, ctx->window, 0, 0, 0, 1);
+			}
 		}
+
+		MTY_WindowPresent(ctx->app, ctx->window);
+
+		double diff = MTY_TimeDiff(stamp, MTY_GetTime());
+
+		if (!ctx->cfg.vsync)
+			MTY_PreciseSleep(1000.0 / core_get_frame_rate(ctx->core) - diff, 4.0);
 	}
 
 	MTY_WindowSetGFX(ctx->app, ctx->window, MTY_GFX_NONE, false);
@@ -1020,7 +1019,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			}
 
 			if (evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE)
-				MTY_WebViewShow(ctx->app, ctx->window, !MTY_WebViewIsVisible(ctx->app, ctx->window));
+				MTY_WebViewShow(ctx->app, ctx->window, !ctx->menu_visible);
 			break;
 		}
 		case MTY_EVENT_MOTION:
@@ -1031,30 +1030,48 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 
 			const MTY_ControllerEvent *c = &evt->controller;
 
-			#define REV_AXIS(axis) \
-				((axis) == INT16_MAX ? INT16_MIN : (axis) == INT16_MIN ? INT16_MAX : -(axis))
+			if (!ctx->menu_visible) {
 
-			core_set_button(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_B]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_A]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_Y]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_X]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_SELECT, c->buttons[MTY_CBUTTON_BACK]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_R, c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_U, c->buttons[MTY_CBUTTON_DPAD_UP]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
+				#define REV_AXIS(axis) \
+					((axis) == INT16_MAX ? INT16_MIN : (axis) == INT16_MIN ? INT16_MAX : -(axis))
 
-			core_set_button(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
-			core_set_button(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_B]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_A]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_Y]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_X]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_SELECT, c->buttons[MTY_CBUTTON_BACK]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_R, c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_U, c->buttons[MTY_CBUTTON_DPAD_UP]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
 
-			core_set_axis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
-			core_set_axis(ctx->core, 0, CORE_AXIS_LY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_LY].value));
-			core_set_axis(ctx->core, 0, CORE_AXIS_RX, c->axes[MTY_CAXIS_THUMB_RX].value);
-			core_set_axis(ctx->core, 0, CORE_AXIS_RY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_RY].value));
+				core_set_button(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
 
+				core_set_axis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
+				core_set_axis(ctx->core, 0, CORE_AXIS_LY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_LY].value));
+				core_set_axis(ctx->core, 0, CORE_AXIS_RX, c->axes[MTY_CAXIS_THUMB_RX].value);
+				core_set_axis(ctx->core, 0, CORE_AXIS_RY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_RY].value));
+
+			} else {
+				MTY_JSON *msg = MTY_JSONObjCreate();
+				MTY_JSONObjSetString(msg, "type", "controller");
+				MTY_JSONObjSetBool(msg, "b", c->buttons[MTY_CBUTTON_B]);
+				MTY_JSONObjSetBool(msg, "a", c->buttons[MTY_CBUTTON_A]);
+				MTY_JSONObjSetBool(msg, "u", c->buttons[MTY_CBUTTON_DPAD_UP]);
+				MTY_JSONObjSetBool(msg, "d", c->buttons[MTY_CBUTTON_DPAD_DOWN]);
+				MTY_JSONObjSetBool(msg, "l", c->buttons[MTY_CBUTTON_DPAD_LEFT]);
+				MTY_JSONObjSetBool(msg, "r", c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
+
+				char *jmsg = MTY_JSONSerialize(msg);
+				MTY_WebViewSendText(ctx->app, ctx->window, jmsg);
+
+				MTY_Free(jmsg);
+				MTY_JSONDestroy(&msg);
+			}
 			break;
 		}
 		case MTY_EVENT_WEBVIEW_READY:
@@ -1074,6 +1091,8 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 static bool main_app_func(void *opaque)
 {
 	struct main *ctx = opaque;
+
+	ctx->menu_visible = MTY_WebViewIsVisible(ctx->app, ctx->window);
 
 	main_poll_app_events(ctx, ctx->mt_q);
 
