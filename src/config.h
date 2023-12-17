@@ -30,11 +30,11 @@ struct config {
 	bool mute;
 	bool square_pixels;
 	bool int_scaling;
-	bool vsync;
 	uint32_t audio_buffer;
 	uint32_t playback_rate;
 	uint32_t scanlines;
 	uint32_t sharpen;
+	uint32_t vsync;
 
 	MTY_GFX gfx;
 	MTY_Filter filter;

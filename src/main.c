@@ -50,7 +50,7 @@ struct app_event {
 	// These should be unioned
 	struct config cfg;
 	MTY_GFX gfx;
-	bool vsync;
+	uint32_t vsync;
 	char title[APP_TITLE_MAX];
 	char game[MTY_PATH_MAX];
 	struct {
@@ -78,6 +78,7 @@ struct main {
 	uint8_t last_save_index;
 	uint8_t last_load_index;
 	bool menu_visible;
+	bool menu_debounce;
 	bool running;
 	bool paused;
 	bool audio_init;
@@ -147,13 +148,13 @@ static struct config main_load_config(const MTY_JSON *jcfg, MTY_JSON **core_opti
 	CFG_GET_BOOL(mute, false);
 	CFG_GET_BOOL(square_pixels, false);
 	CFG_GET_BOOL(int_scaling, false);
-	CFG_GET_BOOL(vsync, true);
 	CFG_GET_UINT(gfx, MTY_GetDefaultGFX());
 	CFG_GET_UINT(filter, MTY_FILTER_LINEAR);
 	CFG_GET_UINT(audio_buffer, 75);
 	CFG_GET_UINT(playback_rate, 48000);
 	CFG_GET_UINT(scanlines, 80);
 	CFG_GET_UINT(sharpen, 0);
+	CFG_GET_UINT(vsync, 0);
 	CFG_GET_UINT(window.type, MTY_WINDOW_NORMAL);
 	CFG_GET_UINT(window.size.w, 0);
 	CFG_GET_UINT(window.size.h, 0);
@@ -205,10 +206,7 @@ static void main_save_config(struct config *cfg, const MTY_JSON *core_options, c
 	#define CFG_SET_BOOL(name) \
 		MTY_JSONObjSetBool(jcfg, #name, cfg->name)
 
-	#define CFG_SET_INT(name) \
-		MTY_JSONObjSetNumber(jcfg, #name, cfg->name)
-
-	#define CFG_SET_UINT(name) \
+	#define CFG_SET_NUMBER(name) \
 		MTY_JSONObjSetNumber(jcfg, #name, cfg->name)
 
 	#define CFG_SET_STR(name) \
@@ -219,18 +217,18 @@ static void main_save_config(struct config *cfg, const MTY_JSON *core_options, c
 	CFG_SET_BOOL(mute);
 	CFG_SET_BOOL(square_pixels);
 	CFG_SET_BOOL(int_scaling);
-	CFG_SET_BOOL(vsync);
-	CFG_SET_UINT(gfx);
-	CFG_SET_UINT(filter);
-	CFG_SET_UINT(audio_buffer);
-	CFG_SET_UINT(playback_rate);
-	CFG_SET_UINT(scanlines);
-	CFG_SET_UINT(sharpen);
-	CFG_SET_UINT(window.type);
-	CFG_SET_UINT(window.size.w);
-	CFG_SET_UINT(window.size.h);
-	CFG_SET_INT(window.x);
-	CFG_SET_INT(window.y);
+	CFG_SET_NUMBER(gfx);
+	CFG_SET_NUMBER(filter);
+	CFG_SET_NUMBER(audio_buffer);
+	CFG_SET_NUMBER(playback_rate);
+	CFG_SET_NUMBER(scanlines);
+	CFG_SET_NUMBER(sharpen);
+	CFG_SET_NUMBER(vsync);
+	CFG_SET_NUMBER(window.type);
+	CFG_SET_NUMBER(window.size.w);
+	CFG_SET_NUMBER(window.size.h);
+	CFG_SET_NUMBER(window.x);
+	CFG_SET_NUMBER(window.y);
 	CFG_SET_STR(window.screen);
 
 	CFG_SET_BOOL(fullscreen);
@@ -611,7 +609,8 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				ctx->running = false;
 				break;
 			case APP_EVENT_GFX:
-				MTY_WindowSetGFX(ctx->app, ctx->window, evt->gfx, evt->vsync);
+				MTY_WindowSetGFX(ctx->app, ctx->window, evt->gfx, evt->vsync > 0);
+				MTY_WindowSetSyncInterval(ctx->app, ctx->window, evt->vsync);
 				break;
 			case APP_EVENT_PAUSE:
 				ctx->paused = !ctx->paused;
@@ -804,7 +803,8 @@ static void *main_render_thread(void *opaque)
 {
 	struct main *ctx = opaque;
 
-	MTY_WindowSetGFX(ctx->app, ctx->window, ctx->cfg.gfx, ctx->cfg.vsync);
+	MTY_WindowSetGFX(ctx->app, ctx->window, ctx->cfg.gfx, ctx->cfg.vsync > 0);
+	MTY_WindowSetSyncInterval(ctx->app, ctx->window, ctx->cfg.vsync);
 
 	while (ctx->running) {
 		MTY_Time stamp = MTY_GetTime();
@@ -832,7 +832,7 @@ static void *main_render_thread(void *opaque)
 
 		double diff = MTY_TimeDiff(stamp, MTY_GetTime());
 
-		if (!ctx->cfg.vsync)
+		if (ctx->cfg.vsync == 0)
 			MTY_PreciseSleep(1000.0 / core_get_frame_rate(ctx->core) - diff, 4.0);
 	}
 
@@ -995,6 +995,8 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 {
 	struct main *ctx = opaque;
 
+	bool toggle_menu = false;
+
 	switch (evt->type) {
 		case MTY_EVENT_CLOSE:
 		case MTY_EVENT_QUIT:
@@ -1018,8 +1020,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 					core_set_button(ctx->core, 0, button, evt->key.pressed);
 			}
 
-			if (evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE)
-				MTY_WebViewShow(ctx->app, ctx->window, !ctx->menu_visible);
+			toggle_menu = evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE;
 			break;
 		}
 		case MTY_EVENT_MOTION:
@@ -1072,6 +1073,11 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				MTY_Free(jmsg);
 				MTY_JSONDestroy(&msg);
 			}
+
+			bool pressed = c->buttons[MTY_CBUTTON_LEFT_TRIGGER];
+
+			toggle_menu = pressed && ctx->menu_debounce != pressed;
+			ctx->menu_debounce = pressed;
 			break;
 		}
 		case MTY_EVENT_WEBVIEW_READY:
@@ -1086,6 +1092,9 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 		default:
 			break;
 	}
+
+	if (toggle_menu)
+		MTY_WebViewShow(ctx->app, ctx->window, !ctx->menu_visible);
 }
 
 static bool main_app_func(void *opaque)

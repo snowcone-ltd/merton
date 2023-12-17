@@ -50,10 +50,17 @@ const MENU_ITEMS = [
 		{name: 'reset-window', type: 'action', etype: 'label', label: 'Reset Window'},
 		{etype: 'separator'},
 		{name: 'fullscreen', type: 'cfg', etype: 'checkbox', label: 'Fullscreen'},
-		{name: 'vsync', type: 'cfg', etype: 'checkbox', label: 'VSync'},
 		{name: 'square_pixels', type: 'cfg', etype: 'checkbox', label: 'Square Pixels'},
 		{name: 'int_scaling', type: 'cfg', etype: 'checkbox', label: 'Integer Scaling'},
 		{etype: 'separator'},
+		{name: 'vsync', type: 'cfg', etype: 'dropdown', label: 'VSync', opts: [
+			{label: 'Off', value: 0},
+			{label: '1.00 (60 Hz)', value: 100},
+			{label: '1.25 (75 Hz)', value: 125},
+			{label: '2.00 (120 Hz)', value: 200},
+			{label: '2.40 (144 Hz)', value: 240},
+			{label: '4.00 (240 Hz)', value: 400},
+		]},
 		{name: 'gfx', type: 'cfg', etype: 'dropdown', label: 'Graphics', opts: [
 			{label: 'OpenGL', value: 1},
 			{label: 'Vulkan', value: 2},
