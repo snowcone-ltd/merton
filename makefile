@@ -68,6 +68,7 @@ LIBS = \
 	imm32.lib \
 	winhttp.lib \
 	crypt32.lib \
+	cabinet.lib \
 	hid.lib
 
 !IFDEF DEBUG
@@ -81,8 +82,11 @@ LINK_FLAGS = $(LINK_FLAGS) /LTCG
 
 CFLAGS = $(INCLUDES) $(DEFS) $(FLAGS)
 
-all: clean clear $(OBJS) $(RESOURCES)
+all: clean clear zip $(OBJS) $(RESOURCES)
 	link /out:$(BIN) $(LINK_FLAGS) *.obj $(LIBS) $(RESOURCES)
+
+zip:
+	compress\mcompress ui-zip.h UI_ZIP src\ui
 
 clean:
 	@-del /q $(RESOURCES) 2>nul

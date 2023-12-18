@@ -10,6 +10,7 @@
 #include "app.h"
 #include "core.h"
 #include "config.h"
+#include "ui-zip.h"
 
 #define APP_TITLE_MAX 1024
 #define MAIN_WINDOW_W 800
@@ -1140,6 +1141,49 @@ static void main_mty_log_callback(const char *msg, void *opaque)
 	printf("%s\n", msg);
 }
 
+static void main_set_webview(struct main *ctx)
+{
+	char *dir = (char *) MTY_GetProcessDir();
+
+	for (size_t x = 0; x < strlen(dir); x++)
+		if (dir[x] == '\\')
+			dir[x] = '/';
+
+	// The Steam WebView needs to know about the location of the SO
+	const char *fdir = MTY_WebViewIsSteam() ? MTY_JoinPath("deps", "steam") :
+		MTY_JoinPath(main_asset_dir(), "tmp");
+
+	MTY_WindowSetWebView(ctx->app, ctx->window, fdir, MTN_DEBUG_WEBVIEW);
+
+	const char *url = MTY_SprintfDL("file:///%s/merton-files/ui/index.html", dir);
+
+	// Development location
+	if (MTY_FileExists(MTY_JoinPath(dir, MTY_JoinPath("src", MTY_JoinPath("ui", "index.html"))))) {
+		url = MTY_SprintfDL("file:///%s/src/ui/index.html", dir);
+
+	// Production location, bootstrap from UI_ZIP if necessary
+	} else {
+		const char *ui = MTY_JoinPath(main_asset_dir(), "ui");
+
+		if (!MTY_FileExists(MTY_JoinPath(ui, "index.html"))) {
+			MTY_Mkdir(ui);
+
+			for (size_t x = 0; x < UI_ZIP_LEN; x++) {
+				size_t size = 0;
+				void *out = MTY_Decompress(UI_ZIP[x].buf, UI_ZIP[x].size, &size);
+
+				if (out) {
+					MTY_WriteFile(MTY_JoinPath(ui, UI_ZIP[x].name), out, size);
+					MTY_Free(out);
+				}
+			}
+		}
+	}
+
+	MTY_WebViewNavigate(ctx->app, ctx->window, url, true);
+	MTY_WebViewSetInputPassthrough(ctx->app, ctx->window, true);
+}
+
 int32_t main(int32_t argc, char **argv)
 {
 	MTY_HttpAsyncCreate(4);
@@ -1187,20 +1231,7 @@ int32_t main(int32_t argc, char **argv)
 
 	MTY_WindowSetMinSize(ctx.app, ctx.window, 256, 240);
 
-	char *dir = (char *) MTY_GetProcessDir();
-
-	for (size_t x = 0; x < strlen(dir); x++)
-		if (dir[x] == '\\')
-			dir[x] = '/';
-
-	const char *fdir = MTY_WebViewIsSteam() ? MTY_JoinPath("deps", "steam") :
-		MTY_JoinPath(main_asset_dir(), "tmp");
-
-	MTY_WindowSetWebView(ctx.app, ctx.window, fdir, MTN_DEBUG_WEBVIEW);
-
-	const char *url = MTY_SprintfDL("file:///%s/src/ui/index.html", dir);
-	MTY_WebViewNavigate(ctx.app, ctx.window, url, true);
-	MTY_WebViewSetInputPassthrough(ctx.app, ctx.window, true);
+	main_set_webview(&ctx);
 
 	MTY_Thread *rt = MTY_ThreadCreate(main_render_thread, &ctx);
 	MTY_Thread *at = MTY_ThreadCreate(main_audio_thread, &ctx);
