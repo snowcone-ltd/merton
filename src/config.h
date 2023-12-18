@@ -25,6 +25,7 @@
 
 struct config {
 	bool bg_pause;
+	bool menu_pause;
 	bool console;
 	bool fullscreen;
 	bool mute;

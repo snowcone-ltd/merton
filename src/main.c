@@ -35,6 +35,7 @@ enum app_event_type {
 	APP_EVENT_SAVE_STATE  = 11,
 	APP_EVENT_LOAD_STATE  = 12,
 	APP_EVENT_SET_DISK    = 13,
+	APP_EVENT_HIDE_MENU   = 14,
 };
 
 struct audio_packet {
@@ -144,6 +145,7 @@ static struct config main_load_config(const MTY_JSON *jcfg, MTY_JSON **core_opti
 		if (!MTY_JSONObjGetString(jcfg, #name, cfg.name, size)) snprintf(cfg.name, size, "%s", def);
 
 	CFG_GET_BOOL(bg_pause, false);
+	CFG_GET_BOOL(menu_pause, false);
 	CFG_GET_BOOL(console, false);
 	CFG_GET_BOOL(mute, false);
 	CFG_GET_BOOL(square_pixels, false);
@@ -213,6 +215,7 @@ static void main_save_config(struct config *cfg, const MTY_JSON *core_options, c
 		MTY_JSONObjSetString(jcfg, #name, cfg->name)
 
 	CFG_SET_BOOL(bg_pause);
+	CFG_SET_BOOL(menu_pause);
 	CFG_SET_BOOL(console);
 	CFG_SET_BOOL(mute);
 	CFG_SET_BOOL(square_pixels);
@@ -618,14 +621,22 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			case APP_EVENT_TITLE:
 				MTY_WindowSetTitle(ctx->app, ctx->window, evt->title);
 				break;
-			case APP_EVENT_LOAD_GAME:
+			case APP_EVENT_LOAD_GAME: {
 				main_load_game(ctx, evt->game, evt->fetch_core);
 				ctx->paused = false;
+
+				struct app_event hevt = {.type = APP_EVENT_HIDE_MENU};
+				main_push_app_event(&hevt, ctx);
 				break;
-			case APP_EVENT_RESET:
+			}
+			case APP_EVENT_RESET: {
 				core_reset_game(ctx->core);
 				ctx->paused = false;
+
+				struct app_event hevt = {.type = APP_EVENT_HIDE_MENU};
+				main_push_app_event(&hevt, ctx);
 				break;
+			}
 			case APP_EVENT_UNLOAD_GAME: {
 				main_unload(ctx, false);
 
@@ -685,6 +696,9 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			}
 			case APP_EVENT_SET_DISK:
 				core_set_disk(ctx->core, evt->disk);
+				break;
+			case APP_EVENT_HIDE_MENU:
+				MTY_WebViewShow(ctx->app, ctx->window, false);
 				break;
 		}
 
@@ -813,8 +827,10 @@ static void *main_render_thread(void *opaque)
 		main_poll_core_fetch(ctx);
 
 		bool loaded = core_game_is_loaded(ctx->core);
-		bool active = !ctx->paused && (!ctx->cfg.bg_pause ||
-			MTY_WindowIsActive(ctx->app, ctx->window));
+
+		bool active = !ctx->paused &&
+			((!ctx->cfg.bg_pause || MTY_WindowIsActive(ctx->app, ctx->window)) &&
+			(!ctx->cfg.menu_pause || !ctx->menu_visible));
 
 		if (active && loaded) {
 			core_run_frame(ctx->core);

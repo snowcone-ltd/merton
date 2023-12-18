@@ -11,9 +11,8 @@ const MENU_ITEMS = [
 		{name: 'reload', type: 'action', etype: 'label', label: 'Reload ROM', needsRunning: true},
 		{name: 'reset', type: 'nstate', etype: 'label', label: 'Reset', needsRunning: true},
 		{etype: 'separator'},
-		{name: 'pause', type: 'nstate', etype: 'checkbox', label: 'Pause Emulation', needsRunning: true},
+		{name: 'menu_pause', type: 'cfg', etype: 'checkbox', label: 'Menu Pause'},
 		{name: 'bg_pause', type: 'cfg', etype: 'checkbox', label: 'Background Pause'},
-		{name: 'console', type: 'cfg', etype: 'checkbox', label: 'Console Window'},
 		{etype: 'separator'},
 		{name: 'disk', type: 'nstate', etype: 'dropdown', label: 'Insert Disk', needsRunning: true, needsDisks: true, opts: [
 			{label: 'Select Disk', value: '---'},
@@ -61,13 +60,6 @@ const MENU_ITEMS = [
 			{label: '2.40 (144 Hz)', value: 240},
 			{label: '4.00 (240 Hz)', value: 400},
 		]},
-		{name: 'gfx', type: 'cfg', etype: 'dropdown', label: 'Graphics', opts: [
-			{label: 'OpenGL', value: 1},
-			{label: 'Vulkan', value: 2},
-			{label: 'D3D11', value: 3},
-			{label: 'D3D12', value: 4},
-			{label: 'Metal', value: 5},
-		]},
 		{name: 'filter', type: 'cfg', etype: 'dropdown', label: 'Filter', opts: [
 			{label: 'Nearest', value: 0},
 			{label: 'Linear', value: 1},
@@ -96,6 +88,18 @@ const MENU_ITEMS = [
 			{label: '100 ms', value: 100},
 			{label: '125 ms', value: 125},
 			{label: '150 ms', value: 150},
+		]},
+	]},
+	{name: 'Advanced', items: [
+		{name: 'pause', type: 'nstate', etype: 'checkbox', label: 'Pause Emulation', needsRunning: true},
+		{name: 'console', type: 'cfg', etype: 'checkbox', label: 'Console Window'},
+		{etype: 'separator'},
+		{name: 'gfx', type: 'cfg', etype: 'dropdown', label: 'Graphics', opts: [
+			{label: 'OpenGL', value: 1},
+			{label: 'Vulkan', value: 2},
+			{label: 'D3D11', value: 3},
+			{label: 'D3D12', value: 4},
+			{label: 'Metal', value: 5},
 		]},
 		{name: 'playback_rate', type: 'cfg', etype: 'dropdown', label: 'Playback Rate', opts: [
 			{label: '44.1 kHz', value: 44100},
