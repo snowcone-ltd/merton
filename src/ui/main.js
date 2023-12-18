@@ -157,13 +157,38 @@ function handleEvent(evt) {
 }
 
 
-// Menu Actions
+// Button
 
-function Dropdown(props) {
+function ActionButton(props) {
+	let style = {
+		cursor: 'pointer',
+		margin: '0.3rem auto 0 auto',
+		padding: '.4rem',
+		color: `rgba(190, 190, 190, 1.0)`,
+		borderRadius: '.5rem',
+	};
+
+	if (props.style)
+		style = {...style, ...props.style};
+
+	if (props.disabled) {
+		style.color = `rgba(120, 120, 120, 1.0)`;
+		style.cursor = '';
+		onClick = () => {};
+	}
+
+	return e('div', {style: style, onClick: props.onClick, disabled: props.disabled,
+		'nav-item': props.navGroup, tabindex: props.disabled ? false : -1}, props.label);
+}
+
+
+// Select
+
+function Select(props) {
 	const mitem = props.mitem;
 
 	const style = {
-		margin: '1rem 0 1.3rem 0',
+		margin: '1.1rem 0 1.2rem 0',
 		color: `rgba(190, 190, 190, 1.0)`,
 	};
 
@@ -173,49 +198,105 @@ function Dropdown(props) {
 		fontWeight: 'bold',
 	};
 
-	let ddbstyle = {
+	let sstyle = {
+		background: 'rgba(70, 70, 70, 1)',
 		margin: '.4rem 0 0 0',
-		padding: '.15rem .3rem',
+		padding: '.4rem',
 		cursor: 'pointer',
-		width: '100%',
-		borderRadius: '.4rem',
-		letterSpacing: '.03rem',
-		fontSize: '.9rem',
-		fontFamily: 'sans-serif',
+		borderRadius: '.5rem',
 		color: '#CCC',
-		background: '#666',
 	};
 
-	let onChange = (evt) => {
-		const index = parseInt(evt.target.selectedIndex);
-		const value = mitem.opts[index].value;
-		handleEvent({name: mitem.name, type: mitem.type, value: value});
-		props.setValue(mitem.type, mitem.name, value);
-	};
-
-	let onClick = (evt) => {
-		if (!evt.isTrusted) {
-			// TODO This is a nav click, pop a modal
-		}
-	}
+	let onClick = (evt) =>
+		props.setAppState({select: {mitem, selected: props.selected}});
 
 	if (props.disabled) {
-		lstyle.color = 'rgba(120, 120, 120, 1.0)';
-		ddbstyle.cursor = '';
+		sstyle.color = lstyle.color = 'rgba(120, 120, 120, 1.0)';
+		sstyle.background = '#444';
+		sstyle.cursor = '';
 		onChange = () => {};
 	}
 
-	let sitems = [];
+	let selected = mitem.opts[0].label;
 
 	for (let x = 0; x < mitem.opts.length; x++)
-		sitems.push(e('option', {value: mitem.opts[x].value}, mitem.opts[x].label));
+		if (mitem.opts[x].value == props.selected)
+			selected = mitem.opts[x].label;
 
 	return e('div', {style: style}, [
 		e('div', {style: lstyle}, mitem.label),
-		e('select', {style: ddbstyle, onChange: onChange, onClick: onClick, value: props.selected,
-			disabled: props.disabled, 'nav-item': 1, tabindex: props.disabled ? false : -1}, sitems),
+		e('div', {style: sstyle, disabled: props.disabled, onClick: onClick, 'nav-item': 1,
+			tabindex: props.disabled ? false : -1}, selected),
 	]);
 }
+
+class SelectMenu extends React.Component {
+	constructor(props) {
+		super(props);
+	}
+
+	componentDidMount() {
+		const mitem = this.props.appState.select.mitem;
+		const selected = this.props.appState.select.selected;
+
+		for (let x = 0; x < mitem.opts.length; x++) {
+			if (mitem.opts[x].value == selected) {
+				NAV_Focus(2, x);
+				break;
+			}
+		}
+	}
+
+	render() {
+		const mitem = this.props.appState.select.mitem;
+		const selected = this.props.appState.select.selected;
+
+		const style = {
+			minWidth: '8rem',
+			height: '100%',
+			padding: '.7rem 1rem',
+			background: `rgba(40, 40, 40, ${OPACITY})`,
+			borderRight: `.025rem solid rgba(70, 70, 70, ${OPACITY})`,
+			boxSizing: 'border-box',
+			display: 'inline-block',
+			overflowY: 'auto',
+		};
+
+		let items = [];
+
+		for (let x = 0; x < mitem.opts.length; x++) {
+			if (mitem.opts[x].value == '---')
+				continue;
+
+			let style = {};
+
+			if (mitem.opts[x].value == selected) {
+				style = {
+					color: 'rgba(100, 100, 220, 1)',
+					fontWeight: 'bold',
+				}
+			}
+
+			items.push(e(ActionButton, {
+				disabled: false,
+				onClick: () => {
+					handleEvent({name: mitem.name, type: mitem.type, value: mitem.opts[x].value});
+					this.props.setValue(mitem.type, mitem.name, mitem.opts[x].value);
+					this.props.setAppState({select: null});
+					NAV_SwitchGroup(-1);
+				},
+				label: mitem.opts[x].label,
+				navGroup: 2,
+				style: style,
+			}));
+		}
+
+		return e('div', {style: style}, items);
+	}
+}
+
+
+// Checkbox
 
 function Checkbox(props) {
 	const mitem = props.mitem;
@@ -270,29 +351,8 @@ function Checkbox(props) {
 	return e('label', labelProps, e('input', checkboxProps), mitem.label);
 }
 
-function ActionButton (props) {
-	const mitem = props.mitem;
 
-	let style = {
-		cursor: 'pointer',
-		margin: '0.3rem auto 0 auto',
-		padding: '.4rem',
-		color: `rgba(190, 190, 190, 1.0)`,
-		borderRadius: '.5rem',
-	};
-
-	let onClick = () =>
-		handleEvent({name: mitem.name, type: mitem.type});
-
-	if (props.disabled) {
-		style.color = `rgba(120, 120, 120, 1.0)`;
-		style.cursor = '';
-		onClick = () => {};
-	}
-
-	return e('div', {style: style, onClick: onClick, disabled: props.disabled,
-		'nav-item': 1, tabindex: props.disabled ? false : -1}, mitem.label);
-}
+// Separator
 
 function Separator() {
 	const style = {
@@ -369,13 +429,6 @@ function MenuRight(props) {
 		overflowY: 'auto',
 	};
 
-	const setValue = (type, key, val) => {
-		const obj = props.appState[type];
-		obj[key] = val;
-
-		props.setAppState({type: obj});
-	};
-
 	const menuItems = props.appState.menuItems[props.appState.menuIndex].items;
 
 	let items = [];
@@ -388,16 +441,21 @@ function MenuRight(props) {
 
 		switch (mitem.etype) {
 			case 'label':
-				items.push(e(ActionButton, {mitem: mitem, disabled: disabled}));
+				items.push(e(ActionButton, {
+					disabled: disabled,
+					onClick: () => handleEvent({name: mitem.name, type: mitem.type}),
+					label: mitem.label,
+					navGroup: 1,
+				}));
 				break;
 			case 'checkbox':
 				const cbval = props.appState[mitem.type][mitem.name];
-				items.push(e(Checkbox, {mitem: mitem, setValue: setValue, checked: cbval, disabled: disabled}));
+				items.push(e(Checkbox, {mitem: mitem, setValue: props.setValue, checked: cbval, disabled: disabled}));
 				break;
 			case 'dropdown':
 				const ddval = mitem.type == 'core_opts' ? props.appState.core_opts[mitem.name].cur :
 					props.appState[mitem.type][mitem.name];
-				items.push(e(Dropdown, {mitem: mitem, setValue: setValue, selected: ddval, disabled: disabled}));
+				items.push(e(Select, {mitem: mitem, setAppState: props.setAppState, selected: ddval, disabled: disabled}));
 				break;
 			case 'separator':
 				items.push(e(Separator));
@@ -419,10 +477,22 @@ function Menu(props) {
 		fontFamily: 'sans-serif',
 	};
 
-	return e('div', {style: style}, [
+	const setValue = (type, key, val) => {
+		const obj = props.appState[type];
+		obj[key] = val;
+
+		props.setAppState({type: obj});
+	};
+
+	let items = [
 		e(MenuLeft, {appState: props.appState, setAppState: props.setAppState}),
-		e(MenuRight, {appState: props.appState, setAppState: props.setAppState}),
-	]);
+		e(MenuRight, {appState: props.appState, setAppState: props.setAppState, setValue: setValue}),
+	];
+
+	if (props.appState.select)
+		items.push(e(SelectMenu, {appState: props.appState, setAppState: props.setAppState, setValue: setValue}));
+
+	return e('div', {style: style}, items);
 }
 
 
@@ -480,12 +550,25 @@ class Main extends React.Component {
 		super(props);
 
 		this.state = {
+			select: null,
 			menuIndex: 0,
 			menuItems: MENU_ITEMS,
 			cfg: {},
 			core_opts: {},
 			nstate: {},
 		};
+
+		NAV_SetLoseFocus((element) => {
+			if (element.getAttribute('nav-item') != 2) {
+				this.setState({select: null});
+				NAV_ResetGroup(2);
+			}
+		});
+
+		NAV_SetCancel(() => {
+			this.setState({select: null});
+			NAV_ResetGroup(2);
+		});
 
 		window.MTY_NativeListener = msg => {
 			const json = JSON.parse(msg);
