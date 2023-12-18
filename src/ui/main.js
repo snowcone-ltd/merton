@@ -239,24 +239,32 @@ class SelectMenu extends React.Component {
 		const mitem = this.props.appState.select.mitem;
 		const selected = this.props.appState.select.selected;
 
-		for (let x = 0; x < mitem.opts.length; x++) {
+		for (let x = 0, dummy = 0; x < mitem.opts.length; x++) {
+			if (mitem.opts[x].value == '---')
+				dummy++;
+
 			if (mitem.opts[x].value == selected) {
-				NAV_Focus(2, x);
-				break;
+				NAV_Focus(2, x - dummy);
+				return;
 			}
 		}
+
+		NAV_Focus(2, 0);
 	}
 
 	render() {
 		const mitem = this.props.appState.select.mitem;
 		const selected = this.props.appState.select.selected;
 
+		const border = `.025rem solid rgba(70, 70, 70, ${OPACITY})`;
+
 		const style = {
+			verticalAlign: 'top',
 			minWidth: '8rem',
-			height: '100%',
 			padding: '.7rem 1rem',
-			background: `rgba(40, 40, 40, ${OPACITY})`,
-			borderRight: `.025rem solid rgba(70, 70, 70, ${OPACITY})`,
+			background: `rgba(55, 55, 55, ${OPACITY})`,
+			borderRight: border,
+			borderBottom: border,
 			boxSizing: 'border-box',
 			display: 'inline-block',
 			overflowY: 'auto',
@@ -566,8 +574,11 @@ class Main extends React.Component {
 		});
 
 		NAV_SetCancel(() => {
-			this.setState({select: null});
-			NAV_ResetGroup(2);
+			if (this.state.select) {
+				this.setState({select: null});
+				NAV_ResetGroup(2);
+				NAV_SwitchGroup(-1);
+			}
 		});
 
 		window.MTY_NativeListener = msg => {
