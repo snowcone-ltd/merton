@@ -70,7 +70,7 @@ function NAV_Init() {
 
 	style.appendChild(document.createTextNode(`
 		div:focus, label:focus{
-			background-color: rgba(70, 70, 70, 1) !important;
+			background-color: rgba(80, 80, 80, 1) !important;
 		}
 
 		div:focus, label:focus, select:focus {

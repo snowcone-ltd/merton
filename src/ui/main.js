@@ -220,7 +220,7 @@ function Select(props) {
 		sstyle.color = lstyle.color = 'rgba(120, 120, 120, 1.0)';
 		sstyle.background = '#444';
 		sstyle.cursor = '';
-		onChange = () => {};
+		onClick = () => {};
 	}
 
 	let selected = mitem.opts[0].label;
@@ -309,7 +309,7 @@ class SelectMenu extends React.Component {
 				disabled: false,
 				onClick: () => {
 					handleEvent({name: mitem.name, type: mitem.type, value: mitem.opts[x].value});
-					this.props.setValue(mitem.type, mitem.name, mitem.opts[x].value);
+					this.props.setValue(mitem.name, mitem.opts[x].value);
 					this.props.setAppState({select: null});
 					NAV_SwitchGroup(-1);
 				},
@@ -350,7 +350,7 @@ function Checkbox(props) {
 
 	let onChange = (evt) => {
 		handleEvent({name: mitem.name, type: mitem.type, value: evt.target.checked});
-		props.setValue(mitem.type, mitem.name, evt.target.checked);
+		props.setValue(mitem.name, evt.target.checked);
 	};
 
 	let onClick = (evt) => {
@@ -463,6 +463,7 @@ function MenuRight(props) {
 
 	for (let x = 0; x < menuItems.length; x++) {
 		const mitem = menuItems[x];
+		const val = props.appState.cfg[mitem.name];
 		const disabled = (!props.appState.nstate.running && mitem.needsRunning) ||
 			(!props.appState.nstate.has_disks && mitem.needsDisks) ||
 			(props.appState.cfg.filter != 1 && mitem.needsLinear);
@@ -477,13 +478,10 @@ function MenuRight(props) {
 				}));
 				break;
 			case 'checkbox':
-				const cbval = props.appState[mitem.type][mitem.name];
-				items.push(e(Checkbox, {mitem: mitem, setValue: props.setValue, checked: cbval, disabled: disabled}));
+				items.push(e(Checkbox, {mitem: mitem, setValue: props.setValue, checked: val, disabled: disabled}));
 				break;
 			case 'dropdown':
-				const ddval = mitem.type == 'core_opts' ? props.appState.core_opts[mitem.name].cur :
-					props.appState[mitem.type][mitem.name];
-				items.push(e(Select, {mitem: mitem, setAppState: props.setAppState, selected: ddval, disabled: disabled}));
+				items.push(e(Select, {mitem: mitem, setAppState: props.setAppState, selected: val, disabled: disabled}));
 				break;
 			case 'separator':
 				items.push(e(Separator));
@@ -505,8 +503,8 @@ function Menu(props) {
 		fontFamily: 'sans-serif',
 	};
 
-	const setValue = (type, key, val) => {
-		const obj = props.appState[type];
+	const setValue = (key, val) => {
+		const obj = props.appState.cfg;
 		obj[key] = val;
 
 		props.setAppState({type: obj});

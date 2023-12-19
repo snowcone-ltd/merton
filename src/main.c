@@ -38,6 +38,7 @@ enum app_event_type {
 	APP_EVENT_SET_DISK    = 13,
 	APP_EVENT_HIDE_MENU   = 14,
 	APP_EVENT_VSYNC       = 15,
+	APP_EVENT_STATE       = 16,
 };
 
 struct audio_packet {
@@ -528,7 +529,9 @@ static void main_post_webview_state(struct main *ctx)
 	// Configuration
 	MTY_JSON *msg = MTY_JSONObjCreate();
 	MTY_JSONObjSetString(msg, "type", "state");
-	MTY_JSONObjSetItem(msg, "cfg", MTY_JSONDuplicate(ctx->jcfg));
+
+	MTY_JSON *cfg = MTY_JSONDuplicate(ctx->jcfg);
+	MTY_JSONObjSetItem(msg, "cfg", cfg);
 
 	// Core options
 	MTY_JSON *core_opts = MTY_JSONObjCreate();
@@ -546,9 +549,9 @@ static void main_post_webview_state(struct main *ctx)
 			cur = vars[x].opts[0];
 
 		MTY_JSON *opt_item = MTY_JSONObjCreate();
+		MTY_JSONObjSetString(cfg, key, cur);
 		MTY_JSONObjSetItem(core_opts, key, opt_item);
 		MTY_JSONObjSetString(opt_item, "name", desc);
-		MTY_JSONObjSetString(opt_item, "cur", cur);
 
 		MTY_JSON *opt_list = MTY_JSONArrayCreate(vars[x].nopts);
 		MTY_JSONObjSetItem(opt_item, "list", opt_list);
@@ -675,11 +678,15 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				main_push_app_event(&tevt, ctx);
 				break;
 			}
-			case APP_EVENT_CLEAR_OPTS:
+			case APP_EVENT_CLEAR_OPTS: {
 				MTY_JSONDestroy(&ctx->core_options);
 				ctx->core_options = MTY_JSONObjCreate();
 				core_clear_variables(ctx->core);
+
+				struct app_event sevt = {.type = APP_EVENT_STATE};
+				main_push_app_event(&sevt, ctx);
 				break;
+			}
 			case APP_EVENT_CORE_OPT:
 				MTY_JSONObjSetString(ctx->core_options, evt->opt.key, evt->opt.val);
 				core_set_variable(ctx->core, evt->opt.key, evt->opt.val);
@@ -730,9 +737,13 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			case APP_EVENT_HIDE_MENU:
 				MTY_WebViewShow(ctx->app, ctx->window, false);
 				break;
+			case APP_EVENT_STATE:
+				main_post_webview_state(ctx);
+				break;
 		}
 
-		main_post_webview_state(ctx);
+		if (!evt->rt)
+			main_post_webview_state(ctx);
 
 		MTY_QueuePop(q);
 	}
