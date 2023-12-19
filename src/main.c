@@ -124,7 +124,7 @@ static const char *main_asset_dir(void)
 
 // Config
 
-static struct config main_load_config(const MTY_JSON *jcfg, MTY_JSON **core_options, MTY_JSON **core_exts)
+static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_options, MTY_JSON **core_exts)
 {
 	struct config cfg = {0};
 
@@ -154,9 +154,9 @@ static struct config main_load_config(const MTY_JSON *jcfg, MTY_JSON **core_opti
 	CFG_GET_BOOL(int_scaling, false);
 	CFG_GET_UINT(gfx, MTY_GetDefaultGFX());
 	CFG_GET_UINT(filter, MTY_FILTER_LINEAR);
-	CFG_GET_UINT(audio_buffer, 75);
+	CFG_GET_UINT(audio_buffer, 50);
 	CFG_GET_UINT(playback_rate, 48000);
-	CFG_GET_UINT(scanlines, 80);
+	CFG_GET_UINT(scanlines, 70);
 	CFG_GET_UINT(sharpen, 0);
 	CFG_GET_UINT(vsync, 0);
 	CFG_GET_UINT(window.type, MTY_WINDOW_NORMAL);
@@ -176,7 +176,7 @@ static struct config main_load_config(const MTY_JSON *jcfg, MTY_JSON **core_opti
 	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "parallel-n64");
 	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "merton-nes");
 	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "swanstation");
-	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "bsnes");
+	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen-s");
 	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mednafen-pce");
 
 	const MTY_JSON *obj = MTY_JSONObjGetItem(jcfg, "core_options");
@@ -203,7 +203,7 @@ static struct config main_load_config(const MTY_JSON *jcfg, MTY_JSON **core_opti
 	return cfg;
 }
 
-static void main_save_config(struct config *cfg, const MTY_JSON *core_options, const MTY_JSON *core_exts)
+static MTY_JSON *main_serialize_config(struct config *cfg, const MTY_JSON *core_options, const MTY_JSON *core_exts)
 {
 	MTY_JSON *jcfg = MTY_JSONObjCreate();
 
@@ -252,9 +252,27 @@ static void main_save_config(struct config *cfg, const MTY_JSON *core_options, c
 	MTY_JSONObjSetItem(jcfg, "core_options", MTY_JSONDuplicate(core_options));
 	MTY_JSONObjSetItem(jcfg, "core_exts", MTY_JSONDuplicate(core_exts));
 
-	MTY_JSONWriteFile(MTY_JoinPath(main_asset_dir(), "config.json"), jcfg);
+	return jcfg;
+}
 
+static void main_save_config(struct config *cfg, const MTY_JSON *core_options, const MTY_JSON *core_exts)
+{
+	MTY_JSON *jcfg = main_serialize_config(cfg, core_options, core_exts);
+
+	MTY_JSONWriteFile(MTY_JoinPath(main_asset_dir(), "config.json"), jcfg);
 	MTY_JSONDestroy(&jcfg);
+}
+
+static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options, MTY_JSON **core_exts)
+{
+	MTY_JSON *jcfg = MTY_JSONReadFile(MTY_JoinPath(main_asset_dir(), "config.json"));
+	if (!jcfg)
+		jcfg = MTY_JSONObjCreate();
+
+	*cfg = main_parse_config(jcfg, core_options, core_exts);
+	MTY_JSONDestroy(&jcfg);
+
+	return main_serialize_config(cfg, *core_options, *core_exts);
 }
 
 
@@ -919,7 +937,7 @@ static void main_handle_webview_text(struct main *ctx, const char *text)
 
 			MTY_JSONObjSetBool(ctx->jcfg, "fullscreen", false);
 			struct app_event evt = {.type = APP_EVENT_CONFIG};
-			evt.cfg = main_load_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
+			evt.cfg = main_parse_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
 			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "quit")) {
@@ -998,7 +1016,7 @@ static void main_handle_webview_text(struct main *ctx, const char *text)
 		}
 
 		struct app_event evt = {.type = APP_EVENT_CONFIG};
-		evt.cfg = main_load_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
+		evt.cfg = main_parse_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
 		main_push_app_event(&evt, ctx);
 
 	// Core options change
@@ -1192,11 +1210,7 @@ int32_t main(int32_t argc, char **argv)
 	struct main ctx = {0};
 	ctx.running = true;
 
-	ctx.jcfg = MTY_JSONReadFile(MTY_JoinPath(main_asset_dir(), "config.json"));
-	if (!ctx.jcfg)
-		ctx.jcfg = MTY_JSONObjCreate();
-
-	ctx.cfg = main_load_config(ctx.jcfg, &ctx.core_options, &ctx.core_exts);
+	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options, &ctx.core_exts);
 
 	if (ctx.cfg.console)
 		MTY_OpenConsole(APP_NAME);
