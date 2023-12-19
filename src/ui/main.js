@@ -211,8 +211,10 @@ function Select(props) {
 		color: '#CCC',
 	};
 
-	let onClick = (evt) =>
-		props.setAppState({select: {mitem, selected: props.selected}});
+	let onClick = (evt) => {
+		let rect = evt.target.getBoundingClientRect();
+		props.setAppState({select: {mitem, selected: props.selected, offset: rect.y}});
+	}
 
 	if (props.disabled) {
 		sstyle.color = lstyle.color = 'rgba(120, 120, 120, 1.0)';
@@ -260,13 +262,27 @@ class SelectMenu extends React.Component {
 		const mitem = this.props.appState.select.mitem;
 		const selected = this.props.appState.select.selected;
 
+		let offset = this.props.appState.select.offset * 0.95;
+		let len = mitem.opts.length;
+		let h = len * 0.035;
+		let bottom = offset / window.innerHeight + h;
+
+		if (bottom + h > 0.95)
+			offset -= (bottom + h - 0.95) * window.innerHeight;
+
+		if (offset < 0)
+			offset = 0;
+
 		const border = `.025rem solid rgba(70, 70, 70, ${OPACITY})`;
 
 		const style = {
 			verticalAlign: 'top',
+			position: 'relative',
+			top: `${offset}px`,
 			minWidth: '8rem',
 			padding: '.7rem 1rem',
 			background: `rgba(55, 55, 55, ${OPACITY})`,
+			borderTop: border,
 			borderRight: border,
 			borderBottom: border,
 			boxSizing: 'border-box',
