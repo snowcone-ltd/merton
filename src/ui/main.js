@@ -309,7 +309,7 @@ class SelectMenu extends React.Component {
 				disabled: false,
 				onClick: () => {
 					handleEvent({name: mitem.name, type: mitem.type, value: mitem.opts[x].value});
-					this.props.setValue(mitem.name, mitem.opts[x].value);
+					this.props.setValue(mitem.type, mitem.name, mitem.opts[x].value);
 					this.props.setAppState({select: null});
 					NAV_SwitchGroup(-1);
 				},
@@ -350,7 +350,7 @@ function Checkbox(props) {
 
 	let onChange = (evt) => {
 		handleEvent({name: mitem.name, type: mitem.type, value: evt.target.checked});
-		props.setValue(mitem.name, evt.target.checked);
+		props.setValue(mitem.type, mitem.name, evt.target.checked);
 	};
 
 	let onClick = (evt) => {
@@ -463,7 +463,6 @@ function MenuRight(props) {
 
 	for (let x = 0; x < menuItems.length; x++) {
 		const mitem = menuItems[x];
-		const val = props.appState.cfg[mitem.name];
 		const disabled = (!props.appState.nstate.running && mitem.needsRunning) ||
 			(!props.appState.nstate.has_disks && mitem.needsDisks) ||
 			(props.appState.cfg.filter != 1 && mitem.needsLinear);
@@ -477,12 +476,16 @@ function MenuRight(props) {
 					navGroup: 1,
 				}));
 				break;
-			case 'checkbox':
+			case 'checkbox': {
+				const val = props.appState[mitem.type][mitem.name];
 				items.push(e(Checkbox, {mitem: mitem, setValue: props.setValue, checked: val, disabled: disabled}));
 				break;
-			case 'dropdown':
+			}
+			case 'dropdown': {
+				const val = props.appState[mitem.type][mitem.name];
 				items.push(e(Select, {mitem: mitem, setAppState: props.setAppState, selected: val, disabled: disabled}));
 				break;
+			}
 			case 'separator':
 				items.push(e(Separator));
 				break;
@@ -503,8 +506,8 @@ function Menu(props) {
 		fontFamily: 'sans-serif',
 	};
 
-	const setValue = (key, val) => {
-		const obj = props.appState.cfg;
+	const setValue = (type, key, val) => {
+		const obj = props.appState[type];
 		obj[key] = val;
 
 		props.setAppState({type: obj});
