@@ -116,7 +116,7 @@ const SYSTEMS = {
 	},
 	gameboy: {
 		name: 'Game Boy',
-		cores: ['gambatte', 'sameboy', 'mgba']
+		cores: ['sameboy']
 	},
 	gba: {
 		name: 'Game Boy Advance',
@@ -124,23 +124,23 @@ const SYSTEMS = {
 	},
 	genesis: {
 		name: 'Genesis',
-		cores: ['genesis-plus-gx', 'picodrive']
+		cores: ['genesis_plus_gx']
 	},
 	ms: {
 		name: 'Master System',
-		cores: ['genesis-plus-gx', 'picodrive']
+		cores: ['genesis_plus_gx']
 	},
 	n64: {
 		name: 'N64',
-		cores: ['mupen64plus-next', 'parallel-n64']
+		cores: ['mupen64plus_next']
 	},
 	nes: {
 		name: 'NES',
-		cores: ['merton-nes', 'mesen', 'nestopia', 'quicknes']
+		cores: ['mesen']
 	},
 	ps: {
 		name: 'PlayStation',
-		cores: ['swanstation', 'mednafen-psx', 'pcsx-rearmed']
+		cores: ['swanstation']
 	},
 	snes: {
 		name: 'SNES',
@@ -148,7 +148,7 @@ const SYSTEMS = {
 	},
 	tg16: {
 		name: 'TurboGrafx-16',
-		cores: ['mednafen-pce']
+		cores: ['mednafen_pce']
 	}
 };
 

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <math.h>
 
 #include "matoya.h"
@@ -172,13 +173,13 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_STR(core.atari2600, CONFIG_CORE_MAX, "stella");
 	CFG_GET_STR(core.gameboy, CONFIG_CORE_MAX, "sameboy");
 	CFG_GET_STR(core.gba, CONFIG_CORE_MAX, "mgba");
-	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis-plus-gx");
-	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "genesis-plus-gx");
-	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "parallel-n64");
-	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "merton-nes");
+	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis_plus_gx");
+	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "genesis_plus_gx");
+	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus_next");
+	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "mesen");
 	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "swanstation");
 	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen-s");
-	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mednafen-pce");
+	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mednafen_pce");
 
 	const MTY_JSON *obj = MTY_JSONObjGetItem(jcfg, "core_options");
 	*core_options = obj ? MTY_JSONDuplicate(obj) : MTY_JSONObjCreate();
@@ -281,12 +282,29 @@ static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options, M
 
 static void main_push_app_event(const struct app_event *evt, void *opaque);
 
+static const char *main_get_platform(void)
+{
+	uint32_t platform = MTY_GetPlatform();
+
+	switch (platform & 0xFF000000) {
+		case MTY_OS_WINDOWS: return "windows";
+		case MTY_OS_MACOS:   return "macos";
+		case MTY_OS_ANDROID: return "android";
+		case MTY_OS_LINUX:   return "linux";
+		case MTY_OS_WEB:     return "web";
+		case MTY_OS_IOS:     return "ios";
+		case MTY_OS_TVOS:    return "tvos";
+	}
+
+	return "unknown";
+}
+
 static void main_fetch_core(struct main *ctx, const char *file, const char *name)
 {
 	snprintf(ctx->core_fetch.name, MTY_PATH_MAX, "%s", name);
 	snprintf(ctx->core_fetch.file, MTY_PATH_MAX, "%s", file);
 
-	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s", file);
+	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s/x86_64/%s", main_get_platform(), file);
 	MTY_HttpAsyncRequest(&ctx->core_fetch.req, url, "GET", NULL, NULL, 0, NULL, 10000, false);
 }
 
