@@ -415,7 +415,10 @@ static void main_get_system_by_ext(struct main *ctx, const char *name,
 		char exts[SYSTEM_EXTS_MAX];
 
 		if (MTY_JSONObjGetString(ctx->core_exts, key, exts, SYSTEM_EXTS_MAX)) {
-			if (MTY_Strcasestr(exts, ext)) {
+			const char *substr = MTY_Strcasestr(exts, ext);
+			size_t end = strlen(ext);
+
+			if (substr && (substr[end] == '\0' || substr[end] == '|')) {
 				*core = CONFIG_GET_CORE(&ctx->cfg, key);
 				*system = key;
 				break;
