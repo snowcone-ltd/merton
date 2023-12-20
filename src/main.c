@@ -924,14 +924,17 @@ static void main_handle_webview_text(struct main *ctx, const char *text)
 			goto except;
 
 		if (!strcmp(jbuf, "load-rom")) {
-			const char *file = MTY_OpenFile("Load ROM", ctx->app, ctx->window);
+			char basedir[MTY_PATH_MAX] = {0};
+			if (!MTY_JSONObjGetString(j, "basedir", basedir, MTY_PATH_MAX))
+				goto except;
 
-			if (file) {
-				struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
-				evt.fetch_core = true;
-				snprintf(evt.game, MTY_PATH_MAX, "%s", file);
-				main_push_app_event(&evt, ctx);
-			}
+			char fname[MTY_PATH_MAX] = {0};
+			if (!MTY_JSONObjGetString(j, "fname", fname, MTY_PATH_MAX))
+				goto except;
+
+			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .fetch_core = true, .rt = true};
+			snprintf(evt.game, MTY_PATH_MAX, "%s", MTY_JoinPath(basedir, fname));
+			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "unload-rom")) {
 			struct app_event evt = {.type = APP_EVENT_UNLOAD_GAME, .rt = true};
@@ -995,6 +998,53 @@ static void main_handle_webview_text(struct main *ctx, const char *text)
 				goto except;
 
 			main_push_app_event(&evt, ctx);
+
+		} else if (!strcmp(jbuf, "files")) {
+			char basedir[MTY_PATH_MAX] = {0};
+			MTY_JSONObjGetString(j, "basedir", basedir, MTY_PATH_MAX);
+
+			if (!basedir[0])
+				snprintf(basedir, MTY_PATH_MAX, "%s", MTY_GetProcessDir());
+
+			const char *jdir = basedir;
+
+			char dir[MTY_PATH_MAX] = {0};
+			MTY_JSONObjGetString(j, "dir", dir, MTY_PATH_MAX);
+
+			if (dir[0])
+				jdir = MTY_JoinPath(basedir, dir);
+
+			jdir = MTY_ResolvePath(jdir);
+			if (!jdir)
+				jdir = MTY_GetProcessDir();
+
+			MTY_FileList *list = MTY_GetFileList(jdir, NULL);
+			if (list) {
+				MTY_JSON *jmsg = MTY_JSONObjCreate();
+				MTY_JSON *jlist = MTY_JSONArrayCreate(list->len);
+
+				MTY_JSONObjSetString(jmsg, "type", "files");
+				MTY_JSONObjSetString(jmsg, "path", jdir);
+				MTY_JSONObjSetItem(jmsg, "list", jlist);
+
+				for (uint32_t x = 0; x < list->len; x++) {
+					MTY_FileDesc *desc = &list->files[x];
+
+					MTY_JSON *fobj = MTY_JSONObjCreate();
+					MTY_JSONObjSetBool(fobj, "dir", desc->dir);
+					MTY_JSONObjSetString(fobj, "name", desc->name);
+
+					MTY_JSONArraySetItem(jlist, x, fobj);
+				}
+
+				MTY_FreeFileList(&list);
+
+				char *jstr = MTY_JSONSerialize(jmsg);
+				MTY_WebViewSendText(ctx->app, ctx->window, jstr);
+
+				MTY_Free(jstr);
+				MTY_JSONDestroy(&jmsg);
+			}
 		}
 
 	// Configuration change

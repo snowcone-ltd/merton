@@ -55,6 +55,9 @@ function NAV_SwitchGroup(n) {
 function NAV_Focus(group, i) {
 	let nl = getNavElements(group);
 
+	if (nl.length == 0)
+		return;
+
 	NAV_GROUP = group;
 	NAV_LAST_ELEMENT[group] = nl[i];
 

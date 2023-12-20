@@ -6,7 +6,7 @@ const OPACITY = '0.97';
 
 const MENU_ITEMS = [
 	{name: 'System', items: [
-		{name: 'load-rom', type: 'action', etype: 'label', label: 'Load ROM'},
+		{name: 'load-rom', type: 'files', etype: 'label', label: 'Load ROM'},
 		{name: 'unload-rom', type: 'action', etype: 'label', label: 'Unload ROM', needsRunning: true},
 		{name: 'reload', type: 'action', etype: 'label', label: 'Reload ROM', needsRunning: true},
 		{name: 'reset', type: 'nstate', etype: 'label', label: 'Reset', needsRunning: true},
@@ -153,11 +153,35 @@ const SYSTEMS = {
 };
 
 
+// localStorage
+
+function getLocal(key, def) {
+	return localStorage[key] != undefined ? localStorage[key] : def;
+}
+
+function setLocal(key, val) {
+	localStorage[key] = val;
+}
+
+
 // Events
 
-function handleEvent(evt) {
-	if (window.MTY_NativeSendText)
-		window.MTY_NativeSendText(JSON.stringify(evt));
+function handleEvent(evt, state, setState) {
+	switch (evt.type) {
+		// Handled internally
+		case 'files':
+			handleEvent({type: 'action', name: 'files', basedir: getLocal('fdir', '')});
+			break;
+
+		// Sent to native layer
+		case 'cfg':
+		case 'action':
+		case 'nstate':
+		case 'core_opts':
+			if (window.MTY_NativeSendText)
+				window.MTY_NativeSendText(JSON.stringify(evt));
+			break;
+	}
 }
 
 
@@ -471,7 +495,8 @@ function MenuRight(props) {
 			case 'label':
 				items.push(e(ActionButton, {
 					disabled: disabled,
-					onClick: () => handleEvent({name: mitem.name, type: mitem.type}),
+					onClick: () => handleEvent({name: mitem.name, type: mitem.type},
+						props.appState, props.setAppState),
 					label: mitem.label,
 					navGroup: 1,
 				}));
@@ -495,7 +520,130 @@ function MenuRight(props) {
 	return e('div', {style: style}, items);
 }
 
-function Menu(props) {
+
+// Modals
+
+function Modal(props) {
+	const ostyle = {
+		position: 'absolute',
+		top: '0',
+		width: '100%',
+		height: '100%',
+		background: 'rgba(0, 0, 0, .5)',
+	};
+
+	const cstyle = {
+		position: 'absolute',
+		top: '10%',
+		left: '15%',
+		width: '70%',
+		height: '80%',
+		padding: '1.5rem',
+		background: '#444',
+		boxSizing: 'border-box',
+		border: '0.025rem solid #666',
+		boxShadow: '-.12rem .12rem .5rem .25rem rgba(0, 0, 0, .2)',
+	};
+
+	const tstyle = {
+		textTransform: 'uppercase',
+		fontWeight: 'bold',
+		color: '#CCC',
+	};
+
+	let cancel = () => {
+		props.setAppState({files: null});
+		NAV_ResetGroup(2);
+		NAV_SwitchGroup(-1);
+	};
+
+	let cclick = (evt) => {
+		evt.stopPropagation();
+	};
+
+	return e('div', {style: ostyle, onClick: cancel}, // Dimmed overlay
+		e('div', {style: cstyle, onClick: cclick}, [ // Modal container
+			e('div', {style: tstyle}, props.title),
+			props.children,
+		]),
+	);
+}
+
+class LoadROMModal extends React.Component {
+	constructor(props) {
+		super(props);
+	}
+
+	componentDidMount() {
+		NAV_Focus(2, getLocal('findex', 0));
+	}
+
+	render() {
+		let files = this.props.appState.files.list;
+		let dir = this.props.appState.files.path;
+
+		const rstyle = {
+			padding: '0.3rem',
+			borderBottom: '.025rem solid #666',
+			fontWeight: 'bold',
+			cursor: 'pointer',
+		};
+
+		const rfstyle = {
+			...rstyle,
+			color: '#CCC',
+			fontWeight: 'normal',
+		};
+
+		const cstyle = {
+			padding: '.5rem',
+			overflowY: 'auto',
+			height: '80%',
+		};
+
+		const dstyle = {
+			margin: '1.2rem 0 .5rem .5rem',
+		};
+
+		let items = [];
+
+		for (let x = 0; x < files.length; x++) {
+			let file = files[x];
+
+			if (file.name == '.')
+				continue;
+
+			let click = () => {
+				setLocal('fdir', dir);
+
+				if (file.dir) {
+					handleEvent({type: 'action', name: 'files', basedir: dir, dir: file.name});
+					NAV_Focus(2, 0);
+				} else {
+					setLocal('findex', x - 1); // For '.'
+					handleEvent({type: 'action', name: 'load-rom', basedir: dir, fname: file.name});
+					this.props.setAppState({files: null});
+					NAV_ResetGroup(2);
+					NAV_SwitchGroup(-1);
+				}
+			};
+
+			items.push(e('div', {style: file.dir ? rstyle: rfstyle, onClick: click, 'nav-item': 2, tabindex: -1}, file.name));
+		}
+
+		return e(Modal, {title: 'Load ROM', setAppState: this.props.setAppState},
+			[
+				e('div', {style: dstyle}, dir),
+				e('div', {style: cstyle}, items),
+			],
+		);
+	}
+}
+
+
+// Main
+
+function Body(props) {
 	const style = {
 		width: '100%',
 		height: '100%',
@@ -513,19 +661,16 @@ function Menu(props) {
 		props.setAppState({type: obj});
 	};
 
-	let items = [
-		e(MenuLeft, {appState: props.appState, setAppState: props.setAppState}),
-		e(MenuRight, {appState: props.appState, setAppState: props.setAppState, setValue: setValue}),
+	return [
+		e('div', {style: style}, [
+			e(MenuLeft, {appState: props.appState, setAppState: props.setAppState}),
+			e(MenuRight, {appState: props.appState, setAppState: props.setAppState, setValue: setValue}),
+			props.appState.select ? e(SelectMenu, {appState: props.appState, setAppState:
+				props.setAppState, setValue: setValue}) : null,
+			props.appState.files ? e(LoadROMModal, {appState: props.appState, setAppState: props.setAppState}) : null,
+		]),
 	];
-
-	if (props.appState.select)
-		items.push(e(SelectMenu, {appState: props.appState, setAppState: props.setAppState, setValue: setValue}));
-
-	return e('div', {style: style}, items);
 }
-
-
-// Main
 
 function systemsToMenu() {
 	let mrow = {name: 'Cores', items: []};
@@ -580,6 +725,7 @@ class Main extends React.Component {
 
 		this.state = {
 			select: null,
+			files: null,
 			menuIndex: 0,
 			menuItems: MENU_ITEMS,
 			cfg: {},
@@ -588,15 +734,16 @@ class Main extends React.Component {
 		};
 
 		NAV_SetLoseFocus((element) => {
-			if (element.getAttribute('nav-item') != 2) {
+			if (this.state.select && element.getAttribute('nav-item') != 2) {
 				this.setState({select: null});
 				NAV_ResetGroup(2);
+				NAV_SwitchGroup(-1);
 			}
 		});
 
 		NAV_SetCancel(() => {
-			if (this.state.select) {
-				this.setState({select: null});
+			if (this.state.select || this.state.files) {
+				this.setState({select: null, files: null});
 				NAV_ResetGroup(2);
 				NAV_SwitchGroup(-1);
 			}
@@ -616,10 +763,12 @@ class Main extends React.Component {
 					this.setState({menuItems: menuItems});
 					break;
 				}
-				case 'controller': {
+				case 'controller':
 					NAV_Controller(json);
 					break;
-				}
+				case 'files':
+					this.setState({files: json});
+					break;
 			}
 		};
 	}
@@ -628,7 +777,7 @@ class Main extends React.Component {
 		const setAppState = (state) =>
 			this.setState(state);
 
-		return e(Menu, {appState: this.state, setAppState: setAppState});
+		return e(Body, {appState: this.state, setAppState: setAppState});
 	}
 }
 
