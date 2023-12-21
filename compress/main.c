@@ -57,7 +57,7 @@ int32_t main(int32_t argc, char **argv)
 
 				if (out) {
 					char *hex = output_hex(prefix, num_files, out, outSize);
-					MTY_AppendTextToFile(fname, hex);
+					MTY_AppendTextToFile(fname, "%s", hex);
 					MTY_AppendTextToFile(fname, "static const char %s_%zu_NAME[] = \"%s\";\n",
 						prefix, num_files, desc->name);
 					MTY_Free(hex);
