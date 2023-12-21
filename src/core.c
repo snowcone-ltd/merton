@@ -54,6 +54,7 @@ static enum retro_pixel_format RETRO_PIXEL_FORMAT = RETRO_PIXEL_FORMAT_0RGB1555;
 static struct retro_game_geometry RETRO_GAME_GEOMETRY;
 static struct retro_system_timing RETRO_SYSTEM_TIMING;
 static struct retro_disk_control_callback RETRO_DISK_CONTROL_CALLBACK;
+static unsigned RETRO_CONTROLLER_DEVICE;
 static unsigned RETRO_REGION;
 
 static uint32_t CORE_NUM_VARIABLES;
@@ -96,8 +97,8 @@ static const enum core_button CORE_BUTTON_MAP[16] = {
 	[RETRO_DEVICE_ID_JOYPAD_R]      = CORE_BUTTON_R,
 	[RETRO_DEVICE_ID_JOYPAD_L2]     = CORE_BUTTON_L2,
 	[RETRO_DEVICE_ID_JOYPAD_R2]     = CORE_BUTTON_R2,
-	[RETRO_DEVICE_ID_JOYPAD_L3]     = 0,
-	[RETRO_DEVICE_ID_JOYPAD_R3]     = 0,
+	[RETRO_DEVICE_ID_JOYPAD_L3]     = CORE_BUTTON_L3,
+	[RETRO_DEVICE_ID_JOYPAD_R3]     = CORE_BUTTON_R3,
 };
 
 static const enum core_axis CORE_AXIS_MAP[3][2] = {
@@ -127,10 +128,17 @@ static void core_retro_log_printf(enum retro_log_level level, const char *fmt, .
 
 	va_end(args);
 
-	if (CORE_LOG)
+	if (CORE_LOG && level != RETRO_LOG_DEBUG)
 		CORE_LOG(msg, CORE_LOG_OPAQUE);
 
 	MTY_Free(msg);
+}
+
+static bool core_retro_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength)
+{
+	// TODO
+
+	return false;
 }
 
 static void core_parse_variable(struct core_variable *var, const char *key, const char *val)
@@ -301,58 +309,98 @@ static bool core_retro_environment(unsigned cmd, void *data)
 
 			return true;
 		}
+		case RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE: {
+			struct retro_rumble_interface *arg = data;
+			arg->set_rumble_state = core_retro_rumble;
+
+			return true;
+		}
 
 		// TODO
-		case RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK:
-			printf("RETRO_ENVIRONMENT_SET_KEYBOARD_CALLBACK\n");
-			break;
-		case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
+		case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: {
 			printf("RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO\n");
+			const struct retro_subsystem_info *arg = data;
+			// printf("\t%s, %s, %u\n", arg->desc, arg->ident, arg->id);
+
+			for (unsigned x = 0; x < arg->num_roms; x++) {
+				// const struct retro_subsystem_rom_info *rom = &arg->roms[x];
+				// printf("\t\t%s\n", rom->desc);
+			}
 			break;
-		case RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE:
-			printf("RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE\n");
-			break;
-		case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
+		}
+		case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO: {
 			printf("RETRO_ENVIRONMENT_SET_CONTROLLER_INFO\n");
-			break;
-		case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
+			const struct retro_controller_info *arg = data;
+
+			for (unsigned x = 0; x < arg->num_types; x++) {
+				const struct retro_controller_description *type = &arg->types[x];
+
+				if (type->id == RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 0))
+					RETRO_CONTROLLER_DEVICE = type->id;
+
+				// printf("\t%s: %u\n", type->desc, type->id);
+			}
+			return true;
+		}
+		case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS: {
 			printf("RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS\n");
+			const struct retro_input_descriptor *arg = data;
+
+			for (size_t x = 0; true; x++) {
+				const struct retro_input_descriptor *desc = &arg[x];
+				if (!desc->description)
+					break;
+
+				// printf("\t%u %u %u %u %s\n", desc->port, desc->device,
+				// 	desc->index, desc->id, desc->description);
+			}
 			break;
-		case RETRO_ENVIRONMENT_GET_VFS_INTERFACE:
-			printf("RETRO_ENVIRONMENT_GET_VFS_INTERFACE\n");
-			break;
+		}
 		case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
 			printf("RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS\n");
+			break;
+		// case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE:
+		// 	printf("RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE\n");
+		// 	break;
+		// case RETRO_ENVIRONMENT_GET_GAME_INFO_EXT:
+		// 	printf("RETRO_ENVIRONMENT_GET_GAME_INFO_EXT\n");
+		// 	break;
+		case RETRO_ENVIRONMENT_GET_LED_INTERFACE:
+			printf("RETRO_ENVIRONMENT_GET_LED_INTERFACE\n");
 			break;
 		case RETRO_ENVIRONMENT_GET_PERF_INTERFACE:
 			printf("RETRO_ENVIRONMENT_GET_PERF_INTERFACE\n");
 			break;
-		case RETRO_ENVIRONMENT_SET_HW_RENDER:
-			printf("RETRO_ENVIRONMENT_SET_HW_RENDER\n");
-			break;
 
 		// Unimplemented
+		case RETRO_ENVIRONMENT_SET_HW_RENDER:
+		case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
+			// Interface for enabling hardware rendering (ps, n64)
+		case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
+			// Performance demands hint
+		case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS:
+			// This is an optional efficiency for polling controllers
+		// case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_UPDATE_DISPLAY_CALLBACK:
+		case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
+			// Optionally hide certain settings, dynamically restore them
+		case RETRO_ENVIRONMENT_GET_VFS_INTERFACE:
+			// Used to implement a "Virtual File System" with custom IO functions
+		case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
+			// Achievement system support
 		case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
 			// NES / SNES memory maps for cheats and other advanced emulator features
-		case RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER:
-			// Preallocated memory for drawing, overhead is minimal on current systems
-		case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
-			// Optionally hide certain settings
-		case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
-			// Perfomance demands hint
-		case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
-			// Achievement system?
 		case RETRO_ENVIRONMENT_SET_AUDIO_BUFFER_STATUS_CALLBACK:
 		case RETRO_ENVIRONMENT_SET_MINIMUM_AUDIO_LATENCY:
 			// Handled by resampling and libmatoya's min/max buffers
-		case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS:
-			// This is an optional efficiency for polling controllers
+		case RETRO_ENVIRONMENT_GET_CURRENT_SOFTWARE_FRAMEBUFFER:
+			// Preallocated memory for drawing, overhead is minimal on current systems
 		case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
+			// Fastforwarding mode
 			return false;
 
 		// Unknown
 		default:
-			printf("*** RETRO_ENVIRONMENT: %u, %p\n", cmd, data);
+			printf("RETRO_ENVIRONMENT_UNKNOWN: (0x%X) (%u)\n", cmd, cmd & 0xFF);
 			break;
 	}
 
@@ -525,6 +573,7 @@ void core_unload(struct core **core)
 	memset(&RETRO_GAME_GEOMETRY, 0, sizeof(struct retro_game_geometry));
 	memset(&RETRO_SYSTEM_TIMING, 0, sizeof(struct retro_system_timing));
 	memset(&RETRO_DISK_CONTROL_CALLBACK, 0, sizeof(struct retro_disk_control_callback));
+	RETRO_CONTROLLER_DEVICE = RETRO_DEVICE_JOYPAD;
 	RETRO_REGION = 0;
 
 	CORE_NUM_VARIABLES = 0;
@@ -579,8 +628,7 @@ bool core_load_game(struct core *ctx, const char *path)
 	ctx->game_loaded = ctx->retro_load_game(&game);
 
 	if (ctx->game_loaded) {
-		ctx->retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
-		ctx->retro_set_controller_port_device(1, RETRO_DEVICE_JOYPAD);
+		ctx->retro_set_controller_port_device(0, RETRO_CONTROLLER_DEVICE);
 
 		struct retro_system_av_info av_info = {0};
 		ctx->retro_get_system_av_info(&av_info);

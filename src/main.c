@@ -156,7 +156,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_BOOL(int_scaling, false);
 	CFG_GET_UINT(gfx, MTY_GetDefaultGFX());
 	CFG_GET_UINT(filter, MTY_FILTER_LINEAR);
-	CFG_GET_UINT(audio_buffer, 50);
+	CFG_GET_UINT(audio_buffer, 75);
 	CFG_GET_UINT(playback_rate, 48000);
 	CFG_GET_UINT(scanlines, 70);
 	CFG_GET_UINT(sharpen, 0);
@@ -1176,9 +1176,10 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
 				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
 				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
-
 				core_set_button(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
 				core_set_button(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_L3, c->buttons[MTY_CBUTTON_LEFT_THUMB]);
+				core_set_button(ctx->core, 0, CORE_BUTTON_R3, c->buttons[MTY_CBUTTON_RIGHT_THUMB]);
 
 				core_set_axis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
 				core_set_axis(ctx->core, 0, CORE_AXIS_LY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_LY].value));

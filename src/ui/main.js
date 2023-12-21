@@ -302,6 +302,7 @@ class SelectMenu extends React.Component {
 		const style = {
 			verticalAlign: 'top',
 			position: 'relative',
+			maxHeight: '100%',
 			top: `${offset}px`,
 			minWidth: '8rem',
 			padding: '.7rem 1rem',
@@ -471,7 +472,7 @@ function MenuLeft(props) {
 
 function MenuRight(props) {
 	const style = {
-		minWidth: '13.5rem',
+		width: '15rem',
 		height: '100%',
 		padding: '.7rem 1.2rem',
 		background: `rgba(55, 55, 55, ${OPACITY})`,

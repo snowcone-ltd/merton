@@ -17,7 +17,9 @@ function getActiveIndex(nl) {
 }
 
 function changeFocus(element) {
-	element.focus();
+	if (element)
+		element.focus();
+
 	NAV_LOSE_FOCUS(element);
 }
 
