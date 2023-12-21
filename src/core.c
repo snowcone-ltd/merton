@@ -54,7 +54,7 @@ static enum retro_pixel_format RETRO_PIXEL_FORMAT = RETRO_PIXEL_FORMAT_0RGB1555;
 static struct retro_game_geometry RETRO_GAME_GEOMETRY;
 static struct retro_system_timing RETRO_SYSTEM_TIMING;
 static struct retro_disk_control_callback RETRO_DISK_CONTROL_CALLBACK;
-static unsigned RETRO_CONTROLLER_DEVICE;
+static unsigned RETRO_CONTROLLER_DEVICE = RETRO_DEVICE_JOYPAD;
 static unsigned RETRO_REGION;
 
 static uint32_t CORE_NUM_VARIABLES;
