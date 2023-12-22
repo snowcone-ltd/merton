@@ -1,118 +1,128 @@
-let NAV_GROUP = 0
-let NAV_LAST_ELEMENT = {}
-let NAV_CONTROLLER = {}
-let NAV_LOSE_FOCUS = (element) => {};
-let NAV_CANCEL = () => {};
+let NAV_CONTROLLER = {};
+let NAV_GROUP_INDEX = {};
+let NAV_CUR_ELEMENT = null;
+
+let NAV_FOCUS_CLASS = '';
+let NAV_CAPTURE_LEFT = null;
+let NAV_LOSE_FOCUS = null;
+let NAV_CANCEL = null;
+
+
+// Helpers
 
 function getNavElements(group) {
 	return document.querySelectorAll(`[nav-item='${group}']:not([disabled])`);
 }
 
-function getActiveIndex(nl) {
+function getGroup(element) {
+	if (!element)
+		return -1;
+
+	let group = element.getAttribute('nav-item');
+
+	return group ? parseInt(group) : -1;
+}
+
+function getActiveIndex(group, element) {
+	let nl = getNavElements(group);
+
 	for (let x = 0; x < nl.length; x++)
-		if (nl[x].isSameNode(NAV_LAST_ELEMENT[NAV_GROUP]))
+		if (element && nl[x].isSameNode(element))
 			return x;
 
 	return 0;
 }
 
-function changeFocus(element) {
-	if (element)
-		element.focus();
 
-	NAV_LOSE_FOCUS(element);
-}
+// Focus elements
 
-function focusElement(group, n) {
+function NAV_Focus(group, index) {
 	let nl = getNavElements(group);
-	let i = getActiveIndex(nl);
-
-	if (i + n < nl.length && i + n >= 0) {
-		let node = nl[i + n];
-		changeFocus(node);
-
-		if (node.getAttribute('nav-auto'))
-			node.click();
-
-		NAV_LAST_ELEMENT[group] = node;
-	}
-}
-
-function NAV_SwitchGroup(n) {
-	let nl = getNavElements(NAV_GROUP + n);
-
 	if (nl.length == 0)
 		return;
 
-	NAV_GROUP += n;
+	if (index < 0)
+		index = 0;
 
-	if (NAV_LAST_ELEMENT[NAV_GROUP]) {
-		changeFocus(NAV_LAST_ELEMENT[NAV_GROUP]);
+	if (index >= nl.length)
+		index = nl.length - 1;
 
-	} else {
-		focusElement(NAV_GROUP, 0);
+	let element = nl[index];
+
+	if (NAV_CUR_ELEMENT) {
+		let prevGroup = getGroup(NAV_CUR_ELEMENT);
+
+		NAV_GROUP_INDEX[prevGroup] = getActiveIndex(prevGroup, NAV_CUR_ELEMENT);
+		NAV_CUR_ELEMENT.classList.remove(NAV_FOCUS_CLASS);
 	}
+
+	NAV_CUR_ELEMENT = element;
+	element.classList.add(NAV_FOCUS_CLASS);
+	element.focus();
+
+	if (element.getAttribute('nav-auto'))
+		element.click();
+
+	if (NAV_LOSE_FOCUS)
+		NAV_LOSE_FOCUS(element);
 }
 
-function NAV_Focus(group, i) {
-	let nl = getNavElements(group);
 
-	if (nl.length == 0)
-		return;
+// Group manipulation
 
-	NAV_GROUP = group;
-	NAV_LAST_ELEMENT[group] = nl[i];
-
-	changeFocus(nl[i]);
+function NAV_SwitchGroup(group) {
+	NAV_Focus(group, NAV_GROUP_INDEX[group] != undefined ? NAV_GROUP_INDEX[group] : 0);
 }
 
 function NAV_ResetGroup(group) {
-	delete NAV_LAST_ELEMENT[group];
+	delete NAV_GROUP_INDEX[group];
 }
 
-function NAV_Init() {
-	let style = document.createElement('style');
 
-	style.appendChild(document.createTextNode(`
-		div:focus, label:focus{
-			background-color: rgba(80, 80, 80, 1) !important;
-		}
+// Input
 
-		div:focus, label:focus, select:focus {
-			outline: .12rem solid rgba(100, 100, 220, 1);
-		}
-	`));
+function focusRelative(element, n) {
+	let group = getGroup(element);
+	if (group == -1)
+		group = 0;
 
-	document.head.appendChild(style);
-
-	let nl = getNavElements(0);
-
-	if (nl[0])
-		changeFocus(nl[0]);
+	NAV_Focus(group, getActiveIndex(group, element) + n);
 }
 
 function NAV_Input(input) {
+	let group = getGroup(NAV_CUR_ELEMENT);
+
 	switch (input) {
 		case 'l':
-			NAV_SwitchGroup(-1);
+			if (NAV_CAPTURE_LEFT) {
+				NAV_CAPTURE_LEFT();
+
+			} else {
+				NAV_SwitchGroup(group == -1 ? 0 : group - 1);
+			}
 			break;
 		case 'u':
-			focusElement(NAV_GROUP, -1);
+			focusRelative(NAV_CUR_ELEMENT, -1);
 			break;
 		case 'r':
-			NAV_SwitchGroup(1);
+			NAV_SwitchGroup(group == -1 ? 0 : group + 1);
 			break;
 		case 'd':
-			focusElement(NAV_GROUP, 1);
+			focusRelative(NAV_CUR_ELEMENT, 1);
 			break;
 		case 'a':
-			NAV_LAST_ELEMENT[NAV_GROUP].click()
+			if (NAV_CUR_ELEMENT)
+				NAV_CUR_ELEMENT.click();
 			break;
 		case 'b':
-			NAV_CANCEL();
+			if (NAV_CANCEL)
+				NAV_CANCEL();
 			break;
 	}
 }
+
+
+// Controllers
 
 function inputFirst(json, input) {
 	for (let x = 0; x < input.length; x++) {
@@ -145,6 +155,9 @@ function NAV_Controller(json) {
 	NAV_CONTROLLER = json;
 }
 
+
+// Set style, callbacks
+
 function NAV_SetLoseFocus(func) {
 	NAV_LOSE_FOCUS = func;
 }
@@ -153,18 +166,27 @@ function NAV_SetCancel(func) {
 	NAV_CANCEL = func;
 }
 
-window.addEventListener('mousedown', (e) => {
-	let group = e.srcElement.getAttribute('nav-item');
+function NAV_CaptureLeft(func) {
+	NAV_CAPTURE_LEFT = func;
+}
 
-	if (group) {
-		NAV_GROUP = parseInt(group);
-		NAV_LAST_ELEMENT[NAV_GROUP] = e.srcElement;
+function NAV_SetFocusClass(focusClass) {
+	NAV_FOCUS_CLASS = focusClass;
+}
+
+
+// Attach listeners
+
+window.addEventListener('mouseup', (e) => {
+	let group = getGroup(e.srcElement);
+
+	if (group != -1) {
+		focusRelative(e.srcElement, 0);
 
 	} else {
-		e.preventDefault();
+		if (NAV_LOSE_FOCUS)
+			NAV_LOSE_FOCUS(null);
 	}
-
-	NAV_LOSE_FOCUS(e.srcElement);
 });
 
 window.addEventListener('keydown', (e) => {

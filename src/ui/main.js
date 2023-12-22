@@ -193,7 +193,6 @@ function ActionButton(props) {
 		margin: '0.3rem auto 0 auto',
 		padding: '.4rem',
 		color: `rgba(190, 190, 190, 1.0)`,
-		borderRadius: '.5rem',
 	};
 
 	if (props.style)
@@ -231,7 +230,6 @@ function Select(props) {
 		margin: '.4rem 0 0 0',
 		padding: '.4rem',
 		cursor: 'pointer',
-		borderRadius: '.5rem',
 		color: '#CCC',
 	};
 
@@ -258,6 +256,15 @@ function Select(props) {
 		e('div', {style: sstyle, disabled: props.disabled, onClick: onClick, 'nav-item': 1,
 			tabindex: props.disabled ? false : -1}, selected),
 	]);
+}
+
+function clearModals(setAppState, group) {
+	setAppState({select: null, files: null});
+	NAV_CaptureLeft(null);
+	NAV_ResetGroup(2);
+
+	if (group != -1)
+		NAV_SwitchGroup(group)
 }
 
 class SelectMenu extends React.Component {
@@ -335,8 +342,7 @@ class SelectMenu extends React.Component {
 				onClick: () => {
 					handleEvent({name: mitem.name, type: mitem.type, value: mitem.opts[x].value});
 					this.props.setValue(mitem.type, mitem.name, mitem.opts[x].value);
-					this.props.setAppState({select: null});
-					NAV_SwitchGroup(-1);
+					clearModals(this.props.setAppState, 1);
 				},
 				label: mitem.opts[x].label,
 				navGroup: 2,
@@ -360,7 +366,6 @@ function Checkbox(props) {
 		padding: '.4rem',
 		color: `rgba(190, 190, 190, 1.0)`,
 		display: 'block',
-		borderRadius: '.5rem',
 	};
 
 	let cbstyle = {
@@ -426,15 +431,16 @@ function MenuButton(props) {
 		cursor: 'pointer',
 		margin: '.3rem auto 0 auto',
 		padding: '.4rem',
-		borderRadius: '.5rem',
 	};
 
 	if (props.selected)
 		style.background = `rgba(70, 70, 70, ${OPACITY})`;
 
 	let onClick = () => {
-		NAV_ResetGroup(1);
-		props.setAppState({menuIndex: props.index});
+		if (!props.selected) {
+			NAV_ResetGroup(1);
+			props.setAppState({menuIndex: props.index});
+		}
 	}
 
 	if (props.disabled) {
@@ -553,9 +559,7 @@ function Modal(props) {
 	};
 
 	let cancel = () => {
-		props.setAppState({files: null});
-		NAV_ResetGroup(2);
-		NAV_SwitchGroup(-1);
+		clearModals(props.setAppState, 1);
 	};
 
 	let cclick = (evt) => {
@@ -582,6 +586,12 @@ class LoadROMModal extends React.Component {
 	render() {
 		let files = this.props.appState.files.list;
 		let dir = this.props.appState.files.path;
+
+		setLocal('fdir', dir);
+
+		NAV_CaptureLeft(() => {
+			handleEvent({type: 'action', name: 'files', basedir: dir, dir: '..'});
+		});
 
 		const rstyle = {
 			padding: '0.3rem',
@@ -615,17 +625,15 @@ class LoadROMModal extends React.Component {
 				continue;
 
 			let click = () => {
-				setLocal('fdir', dir);
-
 				if (file.dir) {
 					handleEvent({type: 'action', name: 'files', basedir: dir, dir: file.name});
+					setLocal('findex', 0);
 					NAV_Focus(2, 0);
+
 				} else {
-					setLocal('findex', x - 1); // For '.'
 					handleEvent({type: 'action', name: 'load-rom', basedir: dir, fname: file.name});
-					this.props.setAppState({files: null});
-					NAV_ResetGroup(2);
-					NAV_SwitchGroup(-1);
+					setLocal('findex', x - 1); // For '.'
+					clearModals(this.props.setAppState, 1);
 				}
 			};
 
@@ -724,6 +732,9 @@ class Main extends React.Component {
 	constructor(props) {
 		super(props);
 
+		const setAppState = (state) =>
+			this.setState(state);
+
 		this.state = {
 			select: null,
 			files: null,
@@ -735,19 +746,19 @@ class Main extends React.Component {
 		};
 
 		NAV_SetLoseFocus((element) => {
-			if (this.state.select && element.getAttribute('nav-item') != 2) {
-				this.setState({select: null});
-				NAV_ResetGroup(2);
-				NAV_SwitchGroup(-1);
+			if (this.state.select) {
+				if (!element) {
+					clearModals(setAppState, 1);
+
+				} else if (element.getAttribute('nav-item') != 2) {
+					clearModals(setAppState, -1);
+				}
 			}
 		});
 
 		NAV_SetCancel(() => {
-			if (this.state.select || this.state.files) {
-				this.setState({select: null, files: null});
-				NAV_ResetGroup(2);
-				NAV_SwitchGroup(-1);
-			}
+			if (this.state.select || this.state.files)
+				clearModals(setAppState, 1);
 		});
 
 		window.MTY_NativeListener = msg => {
@@ -798,5 +809,6 @@ class Main extends React.Component {
 
 	ReactDOM.render(e(Main), document.body);
 
-	NAV_Init();
+	NAV_SetFocusClass('focus');
+	NAV_Focus(0, 0);
 })();
