@@ -215,5 +215,9 @@ window.addEventListener('keydown', (e) => {
 			e.preventDefault();
 			NAV_Input('d');
 			break;
+		case 27: // Escape
+			e.preventDefault();
+			NAV_Input('b');
+			break;
 	}
 });

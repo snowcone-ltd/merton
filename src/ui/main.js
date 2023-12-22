@@ -757,8 +757,12 @@ class Main extends React.Component {
 		});
 
 		NAV_SetCancel(() => {
-			if (this.state.select || this.state.files)
+			if (this.state.select || this.state.files) {
 				clearModals(setAppState, 1);
+
+			} else {
+				handleEvent({type: 'action', name: 'hide-menu'});
+			}
 		});
 
 		window.MTY_NativeListener = msg => {

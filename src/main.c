@@ -979,6 +979,10 @@ static void main_handle_webview_text(struct main *ctx, const char *text)
 			struct app_event evt = {.type = APP_EVENT_QUIT};
 			main_push_app_event(&evt, ctx);
 
+		} else if (!strcmp(jbuf, "hide-menu")) {
+			struct app_event evt = {.type = APP_EVENT_HIDE_MENU};
+			main_push_app_event(&evt, ctx);
+
 		} else if (!strcmp(jbuf, "reload")) {
 			const char *name = core_get_game_path(ctx->core);
 
@@ -1148,7 +1152,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 					core_set_button(ctx->core, 0, button, evt->key.pressed);
 			}
 
-			toggle_menu = evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE;
+			toggle_menu = evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE && !ctx->menu_visible;
 			break;
 		}
 		case MTY_EVENT_MOTION:
