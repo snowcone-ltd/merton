@@ -1269,8 +1269,9 @@ static void main_set_webview(struct main *ctx)
 	// Production location, bootstrap from UI_ZIP if necessary
 	} else {
 		const char *ui = MTY_JoinPath(main_asset_dir(), "ui");
+		char *id = MTY_ReadFile(MTY_JoinPath(ui, "id.txt"), NULL);
 
-		if (!MTY_FileExists(MTY_JoinPath(ui, "index.html"))) {
+		if (!id || strcmp(id, UI_ZIP_ID)) {
 			MTY_Mkdir(ui);
 
 			for (size_t x = 0; x < UI_ZIP_LEN; x++) {
@@ -1282,7 +1283,11 @@ static void main_set_webview(struct main *ctx)
 					MTY_Free(out);
 				}
 			}
+
+			MTY_WriteFile(MTY_JoinPath(ui, "id.txt"), UI_ZIP_ID, strlen(UI_ZIP_ID));
 		}
+
+		MTY_Free(id);
 	}
 
 	MTY_WebViewNavigate(ctx->app, ctx->window, url, true);

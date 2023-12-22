@@ -149,6 +149,7 @@ clean:
 	@rm -rf android/app/libs
 	@rm -rf $(NAME)
 	@rm -rf $(OBJS)
+	@rm -rf ui-zip.h
 
 clear:
 	@clear

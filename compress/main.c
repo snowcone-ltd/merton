@@ -85,7 +85,15 @@ int32_t main(int32_t argc, char **argv)
 		"\t{sizeof(%s_%zu), %s_%zu_NAME, %s_%zu},\n", prefix, x, prefix, x, prefix, x);
 	}
 
-	MTY_AppendTextToFile(fname, "};\n");
+	MTY_AppendTextToFile(fname, "};\n\n");
+
+	uint8_t id[18];
+	MTY_GetRandomBytes(id, sizeof(id));
+
+	char idb64[sizeof(id) * 4];
+	MTY_BytesToBase64(id, sizeof(id), idb64, sizeof(idb64));
+
+	MTY_AppendTextToFile(fname, "static const char %s_ID[] = \"%s\";\n", prefix, idb64);
 
 	MTY_FreeFileList(&list);
 

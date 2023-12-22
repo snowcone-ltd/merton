@@ -136,7 +136,7 @@ const SYSTEMS = {
 	},
 	nes: {
 		name: 'NES',
-		cores: ['mesen']
+		cores: ['mesen', 'merton-nes']
 	},
 	ps: {
 		name: 'PlayStation',

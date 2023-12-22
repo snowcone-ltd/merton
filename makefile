@@ -94,6 +94,7 @@ clean:
 	@-del /q *.exe 2>nul
 	@-del /q *.ilk 2>nul
 	@-del /q *.pdb 2>nul
+	@-del /q ui-zip.h 2>nul
 
 clear:
 	@cls

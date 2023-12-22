@@ -36,7 +36,9 @@ LIBS = \
 	ws2_32.lib \
 	shlwapi.lib \
 	shell32.lib \
-	cabinet.lib
+	cabinet.lib \
+	bcrypt.lib \
+	crypt32.lib
 
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Ob0 /Zi /Oy-

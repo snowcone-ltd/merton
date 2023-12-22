@@ -73,7 +73,7 @@ static void *CORE_VIDEO_OPAQUE;
 static char CORE_SAVE_DIR[MTY_PATH_MAX];
 static char CORE_SYSTEM_DIR[MTY_PATH_MAX];
 
-static bool CORE_BUTTONS[CORE_PLAYERS_MAX][CORE_BUTTON_MAX];
+static bool CORE_BUTTONS[2][CORE_PLAYERS_MAX][CORE_BUTTON_MAX];
 static int16_t CORE_AXES[CORE_PLAYERS_MAX][CORE_AXIS_MAX];
 
 static size_t CORE_NUM_FRAMES;
@@ -460,7 +460,7 @@ static int16_t core_retro_input_state(unsigned port, unsigned device,
 		if (id >= 16)
 			return 0;
 
-		return CORE_BUTTONS[port][CORE_BUTTON_MAP[id]];
+		return CORE_BUTTONS[0][port][CORE_BUTTON_MAP[id]];
 
 	// Axes
 	} else if (device == RETRO_DEVICE_ANALOG) {
@@ -591,7 +591,7 @@ void core_unload(struct core **core)
 	CORE_NUM_FRAMES = 0;
 	CORE_HAS_DISK_INTERFACE = false;
 
-	memset(CORE_BUTTONS, 0, sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
+	memset(CORE_BUTTONS, 0, sizeof(bool) * 2 * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 	memset(CORE_AXES, 0, sizeof(int16_t) * CORE_PLAYERS_MAX * CORE_AXIS_MAX);
 
 	MTY_Free(ctx);
@@ -665,6 +665,8 @@ void core_run_frame(struct core *ctx)
 
 	ctx->retro_run();
 	core_output_audio(0);
+
+	memcpy(CORE_BUTTONS[0], CORE_BUTTONS[1], sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 }
 
 enum core_color_format core_get_color_format(struct core *ctx)
@@ -717,7 +719,8 @@ void core_set_button(struct core *ctx, uint8_t player, enum core_button button, 
 	if (!ctx)
 		return;
 
-	CORE_BUTTONS[player][button] = pressed;
+	CORE_BUTTONS[0][player][button] |= pressed;
+	CORE_BUTTONS[1][player][button] = pressed;
 }
 
 void core_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value)
