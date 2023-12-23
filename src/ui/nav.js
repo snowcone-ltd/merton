@@ -116,8 +116,15 @@ function NAV_Input(input) {
 			NAV_FocusRelative(1);
 			break;
 		case 'a':
-			if (NAV_CUR_ELEMENT)
+			if (NAV_CUR_ELEMENT) {
 				NAV_CUR_ELEMENT.click();
+
+				let focusGroup = NAV_CUR_ELEMENT.getAttribute('focus');
+				if (focusGroup) {
+					NAV_ResetGroup(focusGroup);
+					NAV_SwitchGroup(focusGroup);
+				}
+			}
 			break;
 		case 'b':
 			if (NAV_CANCEL)

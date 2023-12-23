@@ -453,7 +453,7 @@ function MenuButton(props) {
 	}
 
 	return e('div', {style: style, onClick: onClick, disabled: props.disabled,
-		'nav-item': 0, 'nav-auto': 1, tabindex: props.disabled ? false : -1}, props.name);
+		'nav-item': 0, 'nav-auto': 1, focus: 1, tabindex: props.disabled ? false : -1}, props.name);
 }
 
 function MenuLeft(props) {
