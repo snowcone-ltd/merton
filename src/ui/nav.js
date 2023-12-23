@@ -180,7 +180,7 @@ function NAV_SetFocusClass(focusClass) {
 window.addEventListener('mouseup', (e) => {
 	let group = getGroup(e.srcElement);
 
-	if (group != -1) {
+	if (group != -1 && e.srcElement.getAttribute('disabled') == null) {
 		focusRelative(e.srcElement, 0);
 
 	} else {
