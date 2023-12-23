@@ -115,7 +115,7 @@ all: clean clear zip
 	make objs -j4
 
 zip:
-	compress/mcompress ui-zip.h UI_ZIP src/ui
+	compress/$(TARGET)/mcompress ui-zip.h UI_ZIP src/ui
 
 objs: $(OBJS)
 	$(CC) -o $(NAME) $(OBJS) $(STATIC_LIBS) $(LIBS) $(LD_FLAGS)

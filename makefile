@@ -86,7 +86,7 @@ all: clean clear zip $(OBJS) $(RESOURCES)
 	link /out:$(BIN) $(LINK_FLAGS) *.obj $(LIBS) $(RESOURCES)
 
 zip:
-	compress\mcompress ui-zip.h UI_ZIP src\ui
+	compress\$(TARGET)\mcompress ui-zip.h UI_ZIP src\ui
 
 clean:
 	@-del /q $(RESOURCES) 2>nul
