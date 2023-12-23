@@ -772,6 +772,11 @@ class Main extends React.Component {
 			}
 		});
 
+		NAV_SetScroll((dir) => {
+			if (this.state.files)
+				NAV_FocusRelative(5 * dir);
+		});
+
 		window.MTY_NativeListener = msg => {
 			const json = JSON.parse(msg);
 

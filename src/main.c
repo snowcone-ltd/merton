@@ -1200,6 +1200,8 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				MTY_JSONObjSetBool(msg, "d", c->buttons[MTY_CBUTTON_DPAD_DOWN]);
 				MTY_JSONObjSetBool(msg, "l", c->buttons[MTY_CBUTTON_DPAD_LEFT]);
 				MTY_JSONObjSetBool(msg, "r", c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
+				MTY_JSONObjSetBool(msg, "ls", c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
+				MTY_JSONObjSetBool(msg, "rs", c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
 
 				char *jmsg = MTY_JSONSerialize(msg);
 				MTY_WebViewSendText(ctx->app, ctx->window, jmsg);

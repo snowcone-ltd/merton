@@ -6,6 +6,7 @@ let NAV_FOCUS_CLASS = '';
 let NAV_CAPTURE_LEFT = null;
 let NAV_LOSE_FOCUS = null;
 let NAV_CANCEL = null;
+let NAV_SCROLL = null
 
 
 // Helpers
@@ -67,6 +68,18 @@ function NAV_Focus(group, index) {
 		NAV_LOSE_FOCUS(element);
 }
 
+function focusRelative(element, n) {
+	let group = getGroup(element);
+	if (group == -1)
+		group = 0;
+
+	NAV_Focus(group, getActiveIndex(group, element) + n);
+}
+
+function NAV_FocusRelative(n) {
+	focusRelative(NAV_CUR_ELEMENT, n);
+}
+
 
 // Group manipulation
 
@@ -81,14 +94,6 @@ function NAV_ResetGroup(group) {
 
 // Input
 
-function focusRelative(element, n) {
-	let group = getGroup(element);
-	if (group == -1)
-		group = 0;
-
-	NAV_Focus(group, getActiveIndex(group, element) + n);
-}
-
 function NAV_Input(input) {
 	let group = getGroup(NAV_CUR_ELEMENT);
 
@@ -102,13 +107,13 @@ function NAV_Input(input) {
 			}
 			break;
 		case 'u':
-			focusRelative(NAV_CUR_ELEMENT, -1);
+			NAV_FocusRelative(-1);
 			break;
 		case 'r':
 			NAV_SwitchGroup(group == -1 ? 0 : group + 1);
 			break;
 		case 'd':
-			focusRelative(NAV_CUR_ELEMENT, 1);
+			NAV_FocusRelative(1);
 			break;
 		case 'a':
 			if (NAV_CUR_ELEMENT)
@@ -117,6 +122,14 @@ function NAV_Input(input) {
 		case 'b':
 			if (NAV_CANCEL)
 				NAV_CANCEL();
+			break;
+		case 'ls':
+			if (NAV_SCROLL)
+				NAV_SCROLL(-1);
+			break;
+		case 'rs':
+			if (NAV_SCROLL)
+				NAV_SCROLL(1);
 			break;
 	}
 }
@@ -149,8 +162,8 @@ function NAV_Controller(json) {
 	if (noButtons)
 		inputFirst(json, input);
 
-	// A, B buttons
-	inputFirst(json, ['a', 'b']);
+	// Other uttons
+	inputFirst(json, ['a', 'b', 'ls', 'rs']);
 
 	NAV_CONTROLLER = json;
 }
@@ -164,6 +177,10 @@ function NAV_SetLoseFocus(func) {
 
 function NAV_SetCancel(func) {
 	NAV_CANCEL = func;
+}
+
+function NAV_SetScroll(func) {
+	NAV_SCROLL = func;
 }
 
 function NAV_CaptureLeft(func) {
