@@ -509,13 +509,13 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 	if (!core)
 		return;
 
+	main_unload(ctx, true);
+
 	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
 	const char *core_path = MTY_JoinPath(MTY_JoinPath(main_asset_dir(), "cores"), cname);
 
 	// If core is on the system, try to use it
 	if (MTY_FileExists(core_path)) {
-		main_unload(ctx, true);
-
 		ctx->core = core_load(core_path, main_asset_dir());
 		if (!ctx->core)
 			return;
