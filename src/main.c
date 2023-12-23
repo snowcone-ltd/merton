@@ -594,6 +594,7 @@ static void main_post_webview_state(struct main *ctx)
 	MTY_JSONObjSetBool(nstate, "has_disks", has_disks);
 	MTY_JSONObjSetNumber(nstate, "num_disks", core_get_num_disks(ctx->core));
 	MTY_JSONObjSetNumber(nstate, "disk", has_disks ? core_get_disk(ctx->core) : -1);
+	MTY_JSONObjSetBool(nstate, "allow_window_adjustments", !MTY_WebViewIsSteam());
 
 	char *jmsg = MTY_JSONSerialize(msg);
 	MTY_WebViewSendText(ctx->app, ctx->window, jmsg);
@@ -1328,8 +1329,12 @@ int32_t main(int32_t argc, char **argv)
 	MTY_AppSetTimeout(ctx.app, 1);
 
 	MTY_Frame frame = ctx.cfg.window;
-	if (frame.size.w == 0)
+	if (frame.size.w == 0) {
 		frame = MTY_MakeDefaultFrame(0, 0, MAIN_WINDOW_W, MAIN_WINDOW_H, 1.0f);
+
+		if (MTY_WebViewIsSteam())
+			frame.type = MTY_WINDOW_FULLSCREEN;
+	}
 
 	ctx.window = MTY_WindowCreate(ctx.app, APP_NAME, &frame, 0);
 	if (ctx.window == -1)

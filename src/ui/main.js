@@ -46,9 +46,9 @@ const MENU_ITEMS = [
 		{name: 'quit', type: 'action', etype: 'label', label: 'Quit'},
 	]},
 	{name: 'Video', items: [
-		{name: 'reset-window', type: 'action', etype: 'label', label: 'Reset Window'},
-		{etype: 'separator'},
-		{name: 'fullscreen', type: 'cfg', etype: 'checkbox', label: 'Fullscreen'},
+		{name: 'reset-window', type: 'action', etype: 'label', label: 'Reset Window', needsWindowAdjustments: true},
+		{etype: 'separator', needsWindowAdjustments: true},
+		{name: 'fullscreen', type: 'cfg', etype: 'checkbox', label: 'Fullscreen', needsWindowAdjustments: true},
 		{name: 'square_pixels', type: 'cfg', etype: 'checkbox', label: 'Square Pixels'},
 		{name: 'int_scaling', type: 'cfg', etype: 'checkbox', label: 'Integer Scaling'},
 		{etype: 'separator'},
@@ -494,6 +494,10 @@ function MenuRight(props) {
 
 	for (let x = 0; x < menuItems.length; x++) {
 		const mitem = menuItems[x];
+
+		if (!props.appState.nstate.allow_window_adjustments && mitem.needsWindowAdjustments)
+			continue;
+
 		const disabled = (!props.appState.nstate.running && mitem.needsRunning) ||
 			(!props.appState.nstate.has_disks && mitem.needsDisks) ||
 			(props.appState.cfg.filter != 1 && mitem.needsLinear);
