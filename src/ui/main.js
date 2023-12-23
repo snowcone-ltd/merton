@@ -110,6 +110,14 @@ const MENU_ITEMS = [
 ];
 
 const SYSTEMS = {
+	nes: {
+		name: 'NES',
+		cores: ['mesen', 'merton-nes']
+	},
+	snes: {
+		name: 'SNES',
+		cores: ['bsnes', 'mesen-s', 'snes9x']
+	},
 	atari2600: {
 		name: 'Atari 2600',
 		cores: ['stella']
@@ -134,17 +142,9 @@ const SYSTEMS = {
 		name: 'N64',
 		cores: ['mupen64plus_next']
 	},
-	nes: {
-		name: 'NES',
-		cores: ['mesen', 'merton-nes']
-	},
 	ps: {
 		name: 'PlayStation',
 		cores: ['swanstation']
-	},
-	snes: {
-		name: 'SNES',
-		cores: ['bsnes', 'mesen-s', 'snes9x']
 	},
 	tg16: {
 		name: 'TurboGrafx-16',
@@ -238,7 +238,10 @@ function Select(props) {
 		props.setAppState({select: {mitem, selected: props.selected, offset: rect.y}});
 	}
 
-	if (props.disabled) {
+
+	let disabled = props.disabled || mitem.opts.length <= 1;
+
+	if (disabled) {
 		sstyle.color = lstyle.color = 'rgba(120, 120, 120, 1.0)';
 		sstyle.background = '#444';
 		sstyle.cursor = '';
@@ -253,8 +256,8 @@ function Select(props) {
 
 	return e('div', {style: style}, [
 		e('div', {style: lstyle}, mitem.label),
-		e('div', {style: sstyle, disabled: props.disabled, onClick: onClick, 'nav-item': 1,
-			tabindex: props.disabled ? false : -1}, selected),
+		e('div', {style: sstyle, disabled, onClick: onClick, 'nav-item': 1,
+			tabindex: disabled ? false : -1}, selected),
 	]);
 }
 
