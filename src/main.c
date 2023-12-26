@@ -38,8 +38,7 @@ enum app_event_type {
 	APP_EVENT_LOAD_STATE  = 12,
 	APP_EVENT_SET_DISK    = 13,
 	APP_EVENT_HIDE_MENU   = 14,
-	APP_EVENT_VSYNC       = 15,
-	APP_EVENT_STATE       = 16,
+	APP_EVENT_STATE       = 15,
 };
 
 struct audio_packet {
@@ -626,18 +625,11 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 					MTY_WindowSetFullscreen(ctx->app, ctx->window, evt->cfg.fullscreen);
 
 				// Graphics API change
-				if (evt->cfg.gfx != ctx->cfg.gfx) {
+				if (evt->cfg.gfx != ctx->cfg.gfx || evt->cfg.vsync != ctx->cfg.vsync) {
 					struct app_event gevt = {.type = APP_EVENT_GFX, .rt = true};
 					gevt.gfx = evt->cfg.gfx;
 					gevt.vsync = evt->cfg.vsync;
 					main_push_app_event(&gevt, ctx);
-				}
-
-				// VSync change
-				if (evt->cfg.vsync != ctx->cfg.vsync) {
-					struct app_event vevt = {.type = APP_EVENT_VSYNC, .rt = true};
-					vevt.vsync = evt->cfg.vsync;
-					main_push_app_event(&vevt, ctx);
 				}
 
 				// Console
@@ -665,9 +657,6 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			case APP_EVENT_GFX:
 				MTY_WindowSetGFX(ctx->app, ctx->window, evt->gfx, evt->vsync > 0);
-				MTY_WindowSetSyncInterval(ctx->app, ctx->window, evt->vsync);
-				break;
-			case APP_EVENT_VSYNC:
 				MTY_WindowSetSyncInterval(ctx->app, ctx->window, evt->vsync);
 				break;
 			case APP_EVENT_PAUSE:
