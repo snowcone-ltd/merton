@@ -17,6 +17,12 @@
 #define MAIN_WINDOW_W 800
 #define MAIN_WINDOW_H 600
 
+#if defined(__arm64__)
+	#define MTN_CORE_ARCH "arm64"
+#else
+	#define MTN_CORE_ARCH "x86_64"
+#endif
+
 #if defined(MTN_DEBUG)
 	#define MTN_DEBUG_WEBVIEW true
 #else
@@ -287,7 +293,7 @@ static const char *main_get_platform(void)
 
 	switch (platform & 0xFF000000) {
 		case MTY_OS_WINDOWS: return "windows";
-		case MTY_OS_MACOS:   return "macos";
+		case MTY_OS_MACOS:   return "macosx";
 		case MTY_OS_ANDROID: return "android";
 		case MTY_OS_LINUX:   return "linux";
 		case MTY_OS_WEB:     return "web";
@@ -303,7 +309,9 @@ static void main_fetch_core(struct main *ctx, const char *file, const char *name
 	snprintf(ctx->core_fetch.name, MTY_PATH_MAX, "%s", name);
 	snprintf(ctx->core_fetch.file, MTY_PATH_MAX, "%s", file);
 
-	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s/x86_64/%s", main_get_platform(), file);
+	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s/%s/%s",
+		main_get_platform(), MTN_CORE_ARCH, file);
+
 	MTY_HttpAsyncRequest(&ctx->core_fetch.req, url, "GET", NULL, NULL, 0, NULL, 10000, false);
 }
 

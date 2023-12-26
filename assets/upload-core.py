@@ -20,8 +20,19 @@ suffix = {
 
 mty_platform = {
 	'linux': 'linux',
-	'apple/osx': 'macos',
+	'apple/osx': 'macosx',
 	'windows': 'windows',
+}
+
+mty_arch = {
+	'linux': {
+	},
+	'apple/osx': {
+		'x86_64': 'x86_64',
+		'arm64': 'arm64',
+	},
+	'windows': {
+	},
 }
 
 cores = [
@@ -79,4 +90,4 @@ if __name__ == '__main__':
 						zinput = zipfile.ZipFile(io.BytesIO(r.content))
 
 						for name in zinput.namelist():
-							upload_to_s3(mty_platform[platform], arch, name, zinput.read(name))
+							upload_to_s3(mty_platform[platform], mty_arch[platform][arch], name, zinput.read(name))
