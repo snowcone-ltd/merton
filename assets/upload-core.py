@@ -1,10 +1,14 @@
 import boto3
 import gzip
+import json
 import os
 import requests
+import hashlib
 import zipfile
 import io
 import sys
+
+user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 platforms = {
 	'linux' : ['x86_64'],
@@ -38,6 +42,10 @@ cores = [
 	'mednafen_pce',
 ]
 
+custom_cores = [
+	'merton-nes',
+]
+
 boto3.setup_default_session(profile_name='default', region_name='us-east-1')
 
 def upload_to_s3(platform, arch, file_name, data):
@@ -59,21 +67,51 @@ def upload_to_s3(platform, arch, file_name, data):
 	os.remove(gz_tmp_name)
 
 if __name__ == '__main__':
+	cmd = 'sync'
+
 	if len(sys.argv) > 1:
-		platform = sys.argv[1]
-		arch = sys.argv[2]
-		name = sys.argv[3]
+		cmd = sys.argv[1]
+
+	if cmd == 'upload':
+		platform = sys.argv[2]
+		arch = sys.argv[3]
+		name = sys.argv[4]
 
 		upload_to_s3(platform, arch, name, open(name, 'rb').read())
-	else:
+
+	elif cmd == 'hash':
+		out = {}
+
+		for platform, archs in platforms.items():
+			for arch in archs:
+				for core in cores + custom_cores:
+					mty_plat = mty_platform[platform]
+					url = 'https://snowcone.ltd/cores/%s/%s/%s.%s' % (mty_plat, arch, core, suffix[platform])
+					r = requests.get(url, headers={'User-Agent': user_agent})
+
+					if not out.get(mty_plat):
+						out[mty_plat] = {}
+
+					if not out[mty_plat].get(arch):
+						out[mty_plat][arch] = {}
+
+					print(r.status_code, url)
+
+					if r.status_code == 200:
+						out[mty_plat][arch][core] = hashlib.sha256(r.content).hexdigest()
+
+		j = json.dumps(json.dumps(out))
+		open('core-hash.h', 'w').write('static const char *CORE_HASH = %s' % j)
+
+	elif cmd == 'sync':
 		for platform, archs in platforms.items():
 			for arch in archs:
 				for core in cores:
 					fname = '%s_libretro.%s.zip' % (core, suffix[platform])
-					furl = 'https://buildbot.libretro.com/nightly/%s/%s/latest/%s' % (platform, arch, fname)
-					r = requests.get(furl, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'})
+					url = 'https://buildbot.libretro.com/nightly/%s/%s/latest/%s' % (platform, arch, fname)
+					r = requests.get(url, headers={'User-Agent': user_agent})
 
-					print(r.status_code, furl)
+					print(r.status_code, url)
 
 					if r.status_code == 200:
 						zinput = zipfile.ZipFile(io.BytesIO(r.content))
