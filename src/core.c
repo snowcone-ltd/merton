@@ -141,6 +141,25 @@ static bool core_retro_rumble(unsigned port, enum retro_rumble_effect effect, ui
 	return false;
 }
 
+static void core_retro_hw_context_reset(void)
+{
+	// TODO
+}
+
+static uintptr_t core_retro_hw_get_current_framebuffer(void)
+{
+	// TODO
+
+	return 0;
+}
+
+static retro_proc_address_t core_retro_hw_get_proc_address(const char *sym)
+{
+	// TODO
+
+	return NULL;
+}
+
 static void core_parse_variable(struct core_variable *var, const char *key, const char *val)
 {
 	snprintf(var->key, CORE_KEY_NAME_MAX, "%s", key);
@@ -176,8 +195,8 @@ static const char *core_variable_default(const char *key)
 	if (!strcmp(key, "mupen64plus-rdp-plugin"))
 		return "angrylion";
 
-	if (!strcmp(key, "parallel-n64-gfxplugin"))
-		return "angrylion";
+	if (!strcmp(key, "mupen64plus-rsp-plugin"))
+		return "cxd4";
 
 	return NULL;
 }
@@ -317,6 +336,26 @@ static bool core_retro_environment(unsigned cmd, void *data)
 		}
 
 		// TODO
+		case RETRO_ENVIRONMENT_SET_HW_RENDER: {
+			printf("RETRO_ENVIRONMENT_SET_HW_RENDER\n");
+
+			struct retro_hw_render_callback *arg = data;
+			arg->context_type = RETRO_HW_CONTEXT_VULKAN;
+			arg->version_major = 3;
+			arg->version_minor = 0;
+			arg->context_reset = core_retro_hw_context_reset;
+			arg->context_destroy = core_retro_hw_context_reset;
+			arg->get_current_framebuffer = core_retro_hw_get_current_framebuffer;
+			arg->get_proc_address = core_retro_hw_get_proc_address;
+
+			arg->depth = false;
+			arg->stencil = false;
+			arg->bottom_left_origin = false;
+			arg->cache_context = false;
+			arg->debug_context = false;
+
+			break;
+		}
 		case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO: {
 			printf("RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO\n");
 			const struct retro_subsystem_info *arg = data;
@@ -356,6 +395,9 @@ static bool core_retro_environment(unsigned cmd, void *data)
 			}
 			break;
 		}
+		case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
+			printf("RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER\n");
+			break;
 		case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
 			printf("RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS\n");
 			break;
@@ -373,9 +415,6 @@ static bool core_retro_environment(unsigned cmd, void *data)
 			break;
 
 		// Unimplemented
-		case RETRO_ENVIRONMENT_SET_HW_RENDER:
-		case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
-			// Interface for enabling hardware rendering (ps, n64)
 		case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
 			// Performance demands hint
 		case RETRO_ENVIRONMENT_GET_INPUT_BITMASKS:
@@ -396,7 +435,7 @@ static bool core_retro_environment(unsigned cmd, void *data)
 			// Preallocated memory for drawing, overhead is minimal on current systems
 		case RETRO_ENVIRONMENT_GET_FASTFORWARDING:
 			// Fastforwarding mode
-			return false;
+			break;
 
 		// Unknown
 		default:
