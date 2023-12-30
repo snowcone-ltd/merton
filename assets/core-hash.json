@@ -1,5 +1,5 @@
 {
-	"id": 1,
+	"id": 4,
 	"linux": {
 		"x86_64": {
 			"stella": "927d2b07766bea35e9f1f6a007fc3591f618875e1ebff18097c996e7944a0e9f",
@@ -28,7 +28,8 @@
 			"bsnes": "33e5a22497276ac01d352613fe05cfdfadbcc37ec9600a103c1b7330b3f0b6df",
 			"mesen-s": "4b8d77bc3612e07f000d91480b9ee7784b2fc5a6d143a70bab8355701e51afe2",
 			"snes9x": "101defc195fb013fc467a231e65090863df60ee06de1d7659af02d67c9a45f53",
-			"mednafen_pce": "5df389eb72370290e5b64fed74247ac56689b9f182c311535ce109e2309d273d"
+			"mednafen_pce": "5df389eb72370290e5b64fed74247ac56689b9f182c311535ce109e2309d273d",
+			"merton-nes": "4473d8ca0aac09398df01f81efb1d138e5762d79b289cabbe93488e2d03553bd"
 		},
 		"arm64": {
 			"stella": "721999fb96cb1acfff3409583620c2d26f89a6173e4fa7ba9b486ffc90398567",
@@ -41,7 +42,8 @@
 			"bsnes": "f0e54e293c1d9cda2dcfa1ca73a80ba09a6c6b603d36e8b0e8a2590d7067e242",
 			"mesen-s": "aac2e91cd2969db2fdf36687a4d891daa67f387b2b0d3f713705cf3fcf15728b",
 			"snes9x": "bcb49f148cd2ee8c5a9d12d79acac3208bb117e1385373c3ed001dea427b7a41",
-			"mednafen_pce": "83e0b6f9164fa364354e5b1c5ce4db2a76eb059e0a71b9c80e586efa82b49c93"
+			"mednafen_pce": "83e0b6f9164fa364354e5b1c5ce4db2a76eb059e0a71b9c80e586efa82b49c93",
+			"merton-nes": "0f0cfc04e1248a449a5ecda70bd970065b1013a729cd527c7d4ae28de9af25c3"
 		}
 	},
 	"windows": {
