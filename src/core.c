@@ -141,11 +141,6 @@ static bool core_retro_rumble(unsigned port, enum retro_rumble_effect effect, ui
 	return false;
 }
 
-static void core_retro_hw_context_reset(void)
-{
-	// TODO
-}
-
 static uintptr_t core_retro_hw_get_current_framebuffer(void)
 {
 	// TODO
@@ -340,19 +335,19 @@ static bool core_retro_environment(unsigned cmd, void *data)
 			printf("RETRO_ENVIRONMENT_SET_HW_RENDER\n");
 
 			struct retro_hw_render_callback *arg = data;
-			arg->context_type = RETRO_HW_CONTEXT_VULKAN;
-			arg->version_major = 3;
-			arg->version_minor = 0;
-			arg->context_reset = core_retro_hw_context_reset;
-			arg->context_destroy = core_retro_hw_context_reset;
+
 			arg->get_current_framebuffer = core_retro_hw_get_current_framebuffer;
 			arg->get_proc_address = core_retro_hw_get_proc_address;
 
-			arg->depth = false;
-			arg->stencil = false;
-			arg->bottom_left_origin = false;
-			arg->cache_context = false;
-			arg->debug_context = false;
+			// arg->context_reset();
+
+			break;
+		}
+		case RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE: {
+			printf("RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE\n");
+			const struct retro_hw_render_context_negotiation_interface *arg = data;
+
+			printf("\t%d, 0x%X\n", arg->interface_type, arg->interface_version);
 
 			break;
 		}
@@ -395,6 +390,9 @@ static bool core_retro_environment(unsigned cmd, void *data)
 			}
 			break;
 		}
+		case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
+			printf("RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE\n");
+			break;
 		case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
 			printf("RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER\n");
 			break;

@@ -238,7 +238,6 @@ function Select(props) {
 		props.setAppState({select: {mitem, selected: props.selected, offset: rect.y}});
 	}
 
-
 	let disabled = props.disabled || mitem.opts.length <= 1;
 
 	if (disabled) {
@@ -344,7 +343,7 @@ class SelectMenu extends React.Component {
 				disabled: false,
 				onClick: () => {
 					handleEvent({name: mitem.name, type: mitem.type, value: mitem.opts[x].value});
-					this.props.setValue(mitem.type, mitem.name, mitem.opts[x].value);
+					this.props.setValue(mitem.type == 'core_opts' ? 'cfg' : mitem.type, mitem.name, mitem.opts[x].value);
 					clearModals(this.props.setAppState, 1);
 				},
 				label: mitem.opts[x].label,
@@ -521,7 +520,7 @@ function MenuRight(props) {
 				break;
 			}
 			case 'dropdown': {
-				const val = props.appState[mitem.type][mitem.name];
+				const val = props.appState[mitem.type == 'core_opts' ? 'cfg' : mitem.type][mitem.name];
 				items.push(e(Select, {mitem: mitem, setAppState: props.setAppState, selected: val, disabled: disabled}));
 				break;
 			}
