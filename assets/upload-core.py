@@ -5,6 +5,7 @@ import os
 import requests
 import hashlib
 import zipfile
+import time
 import io
 import sys
 
@@ -42,12 +43,6 @@ cores = [
 	'mednafen_pce',
 ]
 
-custom_cores = [
-	'merton-nes',
-]
-
-boto3.setup_default_session(profile_name='default', region_name='us-east-1')
-
 def upload_to_s3(platform, arch, file_name, data):
 	file_name = file_name.replace('_libretro', '')
 
@@ -66,49 +61,62 @@ def upload_to_s3(platform, arch, file_name, data):
 	gz_tmp.close()
 	os.remove(gz_tmp_name)
 
+def cloudfront_invalidate(distribution_id):
+	cf = boto3.client('cloudfront')
+	res = cf.create_invalidation(DistributionId=distribution_id, InvalidationBatch={
+		'Paths': {'Quantity': 1, 'Items': ['/*']}, 'CallerReference': str(time.time()).replace(".", "")
+	})
+
+	print("INVALIDATE '%s' ID '%s'" % (distribution_id, res['Invalidation']['Id']))
+
+def output_set_hash(out, mty_plat, arch, core, data):
+	if not out.get(mty_plat):
+		out[mty_plat] = {}
+
+	if not out[mty_plat].get(arch):
+		out[mty_plat][arch] = {}
+
+	new_hash = hashlib.sha256(data).hexdigest()
+
+	if new_hash != out[mty_plat][arch].get(core, ''):
+		out['id'] += 1
+
+	out[mty_plat][arch][core] = new_hash
+
 if __name__ == '__main__':
 	cmd = 'sync'
 
 	if len(sys.argv) > 1:
 		cmd = sys.argv[1]
 
+	script_path = os.path.dirname(os.path.realpath(__file__))
+	core_hash_json_path = os.path.join(script_path, 'core-hash.json')
+	core_hash_path = os.path.join(script_path, 'core-hash.h')
+
+	try:
+		out = json.loads(open(core_hash_json_path, 'r').read())
+	except:
+		out = {'id': 0}
+
 	if cmd == 'upload':
-		platform = sys.argv[2]
-		arch = sys.argv[3]
-		name = sys.argv[4]
+		core = sys.argv[2]
+		mty_plat = sys.argv[3]
+		arch = sys.argv[4]
+		file_name = sys.argv[5]
 
-		upload_to_s3(platform, arch, name, open(name, 'rb').read())
+		data = open(file_name, 'rb').read()
 
-	elif cmd == 'hash':
-		out = {}
-
-		for platform, archs in platforms.items():
-			for arch in archs:
-				for core in cores + custom_cores:
-					mty_plat = mty_platform[platform]
-					url = 'https://snowcone.ltd/cores/%s/%s/%s.%s' % (mty_plat, arch, core, suffix[platform])
-					r = requests.get(url, headers={'User-Agent': user_agent})
-
-					if not out.get(mty_plat):
-						out[mty_plat] = {}
-
-					if not out[mty_plat].get(arch):
-						out[mty_plat][arch] = {}
-
-					print(r.status_code, url)
-
-					if r.status_code == 200:
-						out[mty_plat][arch][core] = hashlib.sha256(r.content).hexdigest()
-
-		j = json.dumps(json.dumps(out))
-		open('core-hash.h', 'w').write('static const char *CORE_HASH = %s' % j)
+		upload_to_s3(mty_plat, arch, file_name, data)
+		output_set_hash(out, mty_plat, arch, core, data)
 
 	elif cmd == 'sync':
 		for platform, archs in platforms.items():
 			for arch in archs:
 				for core in cores:
-					fname = '%s_libretro.%s.zip' % (core, suffix[platform])
-					url = 'https://buildbot.libretro.com/nightly/%s/%s/latest/%s' % (platform, arch, fname)
+					mty_plat = mty_platform[platform]
+
+					fname = '%s_libretro.%s' % (core, suffix[platform])
+					url = 'https://buildbot.libretro.com/nightly/%s/%s/latest/%s.zip' % (platform, arch, fname)
 					r = requests.get(url, headers={'User-Agent': user_agent})
 
 					print(r.status_code, url)
@@ -117,4 +125,13 @@ if __name__ == '__main__':
 						zinput = zipfile.ZipFile(io.BytesIO(r.content))
 
 						for name in zinput.namelist():
-							upload_to_s3(mty_platform[platform], arch, name, zinput.read(name))
+							if name == fname:
+								data = zinput.read(name)
+								upload_to_s3(mty_plat, arch, name, data)
+								output_set_hash(out, mty_plat, arch, core, data)
+								break
+
+	cloudfront_invalidate('E2ULM8DUHAWNQK')
+
+	open(core_hash_json_path, 'w').write(json.dumps(out, indent='\t', separators=(',', ': ')))
+	open(core_hash_path, 'w').write('static const char *CORE_HASH = %s;\n' % json.dumps(json.dumps(out)))
