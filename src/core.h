@@ -4,6 +4,24 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#if defined(CORE_EXPORT)
+	#if defined(_MSC_VER)
+		#define EXPORT __declspec(dllexport)
+	#else
+		#define EXPORT __attribute__((visibility("default")))
+	#endif
+#elif defined(CORE_EXPORT_EXTERN)
+	#define EXPORT extern
+#else
+	#define EXPORT
+#endif
+
+#if defined(CORE_FP)
+	#define FP(func) (*func)
+#else
+	#define FP(func) func
+#endif
+
 #define CORE_PLAYERS_MAX   8
 #define CORE_DESC_MAX      128
 #define CORE_OPTS_MAX      128
@@ -50,7 +68,7 @@ enum core_color_format {
 	CORE_COLOR_FORMAT_B5G5R5A1 = 3,
 };
 
-struct core_variable {
+struct core_setting {
 	uint32_t nopts;
 	char key[CORE_KEY_NAME_MAX];
 	char desc[CORE_DESC_MAX];
@@ -58,38 +76,86 @@ struct core_variable {
 };
 
 typedef void (*CORE_LOG_FUNC)(const char *msg, void *opaque);
-typedef void (*CORE_AUDIO_FUNC)(const int16_t *buf, size_t frames, void *opaque);
-typedef void (*CORE_VIDEO_FUNC)(const void *buf, uint32_t width, uint32_t height,
-	size_t pitch, void *opaque);
+typedef void (*CORE_AUDIO_FUNC)(const int16_t *buf, size_t frames, uint32_t sample_rate, void *opaque);
+typedef void (*CORE_VIDEO_FUNC)(const void *buf, enum core_color_format format,
+	uint32_t width, uint32_t height, size_t pitch, void *opaque);
 
-struct core *core_load(const char *name, const char *asset_dir);
-void core_unload(struct core **core);
-bool core_load_game(struct core *ctx, const char *path);
-void core_unload_game(struct core *ctx);
-void core_reset_game(struct core *ctx);
-void core_run_frame(struct core *ctx);
-void core_set_button(struct core *ctx, uint8_t player, enum core_button button, bool pressed);
-void core_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value);
-void *core_get_state(struct core *ctx, size_t *size);
-bool core_set_state(struct core *ctx, const void *state, size_t size);
-bool core_has_disk_interface(struct core *ctx);
-uint8_t core_get_num_disks(struct core *ctx);
-int8_t core_get_disk(struct core *ctx);
-bool core_set_disk(struct core *ctx, int8_t disk);
-bool core_load_disk(struct core *ctx, uint8_t disk, const char *path);
-void *core_get_sram(struct core *ctx, size_t *size);
-bool core_set_sram(struct core *ctx, const void *sram, size_t size);
-const char *core_get_save_dir(struct core *ctx);
-const char *core_get_game_path(struct core *ctx);
-bool core_game_is_loaded(struct core *ctx);
-uint32_t core_get_sample_rate(struct core *ctx);
-double core_get_frame_rate(struct core *ctx);
-float core_get_aspect_ratio(struct core *ctx);
-enum core_color_format core_get_color_format(struct core *ctx);
-void core_set_log_func(CORE_LOG_FUNC func, void *opaque);
-void core_set_audio_func(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque);
-void core_set_video_func(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque);
-const struct core_variable *core_get_variables(struct core *ctx, uint32_t *len);
-void core_set_variable(struct core *ctx, const char *key, const char *val);
-const char *core_get_variable(struct core *ctx, const char *key);
-void core_clear_variables(struct core *ctx);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+EXPORT struct core *
+FP(core_load)(const char *name, const char *asset_dir, const char *save_dir);
+
+EXPORT void
+FP(core_unload)(struct core **core);
+
+EXPORT bool
+FP(core_load_game)(struct core *ctx, const char *path);
+
+EXPORT void
+FP(core_unload_game)(struct core *ctx);
+
+EXPORT void
+FP(core_reset_game)(struct core *ctx);
+
+EXPORT void
+FP(core_run_frame)(struct core *ctx);
+
+EXPORT void
+FP(core_set_button)(struct core *ctx, uint8_t player, enum core_button button, bool pressed);
+
+EXPORT void
+FP(core_set_axis)(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value);
+
+EXPORT void *
+FP(core_get_state)(struct core *ctx, size_t *size);
+
+EXPORT bool
+FP(core_set_state)(struct core *ctx, const void *state, size_t size);
+
+EXPORT uint8_t
+FP(core_get_num_disks)(struct core *ctx);
+
+EXPORT int8_t
+FP(core_get_disk)(struct core *ctx);
+
+EXPORT bool
+FP(core_set_disk)(struct core *ctx, int8_t disk, const char *path);
+
+EXPORT void *
+FP(core_get_sram)(struct core *ctx, size_t *size);
+
+EXPORT bool
+FP(core_game_is_loaded)(struct core *ctx);
+
+EXPORT double
+FP(core_get_frame_rate)(struct core *ctx);
+
+EXPORT float
+FP(core_get_aspect_ratio)(struct core *ctx);
+
+EXPORT void
+FP(core_set_log_func)(CORE_LOG_FUNC func, void *opaque);
+
+EXPORT void
+FP(core_set_audio_func)(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque);
+
+EXPORT void
+FP(core_set_video_func)(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque);
+
+EXPORT const struct core_setting *
+FP(core_get_settings)(struct core *ctx, uint32_t *len);
+
+EXPORT void
+FP(core_set_setting)(struct core *ctx, const char *key, const char *val);
+
+EXPORT const char *
+FP(core_get_setting)(struct core *ctx, const char *key);
+
+EXPORT void
+FP(core_clear_settings)(struct core *ctx);
+
+#ifdef __cplusplus
+}
+#endif

@@ -8,9 +8,13 @@
 
 #include "matoya.h"
 
-#include "app.h"
+#define CORE_FP
+#define CORE_EXPORT_EXTERN
 #include "core.h"
+
+#include "app.h"
 #include "config.h"
+#include "loader.h"
 #include "ui-zip.h"
 
 #include "assets/core-hash.h"
@@ -30,6 +34,8 @@
 #else
 	#define MTN_DEBUG_WEBVIEW false
 #endif
+
+#define MTN_DEBUG_CORE 1
 
 enum app_event_type {
 	APP_EVENT_TITLE       = 1,
@@ -77,6 +83,7 @@ struct app_event {
 struct main {
 	struct core *core;
 
+	char *game_path;
 	char *content_name;
 	MTY_App *app;
 	MTY_JSON *jcfg;
@@ -132,6 +139,12 @@ static const char *main_asset_dir(void)
 {
 	return MTY_JoinPath(MTY_GetProcessDir(), "merton-files");
 }
+
+static const char *main_save_dir(void)
+{
+	return MTY_JoinPath(main_asset_dir(), "save");
+}
+
 
 // Config
 
@@ -376,15 +389,20 @@ static void main_set_core_hash(MTY_JSON *j, const char *core, const void *data, 
 
 static bool main_check_core_hash(const MTY_JSON *j, const char *core, const char *file)
 {
-	const char *sha256 = main_get_core_hash(j, core);
-	if (!sha256)
-		return false;
+	#if !MTN_DEBUG_CORE
+		const char *sha256 = main_get_core_hash(j, core);
+		if (!sha256)
+			return false;
 
-	char hash[MTY_SHA256_HEX_MAX] = {0};
-	if (!MTY_CryptoHashFile(MTY_ALGORITHM_SHA256_HEX, file, NULL, 0, hash, MTY_SHA256_HEX_MAX))
-		return false;
+		char hash[MTY_SHA256_HEX_MAX] = {0};
+		if (!MTY_CryptoHashFile(MTY_ALGORITHM_SHA256_HEX, file, NULL, 0, hash, MTY_SHA256_HEX_MAX))
+			return false;
 
-	return !strcmp(sha256, hash);
+		return !strcmp(sha256, hash);
+
+	#else
+		return true;
+	#endif
 }
 
 static void main_poll_core_fetch(struct main *ctx)
@@ -418,13 +436,14 @@ static void main_poll_core_fetch(struct main *ctx)
 
 // Core
 
-static void main_video(const void *buf, uint32_t width, uint32_t height, size_t pitch, void *opaque)
+static void main_video(const void *buf, enum core_color_format format,
+	uint32_t width, uint32_t height, size_t pitch, void *opaque)
 {
 	struct main *ctx = opaque;
 
 	// A NULL buffer means we should render the previous frame
-	enum core_color_format format = buf ? core_get_color_format(ctx->core) :
-		CORE_COLOR_FORMAT_UNKNOWN;
+	if (!buf)
+		format = CORE_COLOR_FORMAT_UNKNOWN;
 
 	ctx->desc.format =
 		format == CORE_COLOR_FORMAT_BGRA ? MTY_COLOR_FORMAT_BGRA :
@@ -479,14 +498,14 @@ static void main_video(const void *buf, uint32_t width, uint32_t height, size_t 
 	MTY_WindowDrawQuad(ctx->app, ctx->window, buf, &ctx->desc);
 }
 
-static void main_audio(const int16_t *buf, size_t frames, void *opaque)
+static void main_audio(const int16_t *buf, size_t frames, uint32_t sample_rate, void *opaque)
 {
 	struct main *ctx = opaque;
 
 	struct audio_packet *pkt = MTY_QueueGetInputBuffer(ctx->a_q);
 
 	if (pkt) {
-		pkt->sample_rate = core_get_sample_rate(ctx->core);
+		pkt->sample_rate = sample_rate;
 		pkt->frames = frames;
 
 		memcpy(pkt->data, buf, frames * 4);
@@ -534,7 +553,7 @@ static void main_set_core_options(struct main *ctx)
 		char val[CORE_OPT_NAME_MAX];
 
 		if (MTY_JSONObjGetString(ctx->core_options, key, val, CORE_OPT_NAME_MAX))
-			core_set_variable(ctx->core, key, val);
+			core_set_setting(ctx->core, key, val);
 	}
 }
 
@@ -543,10 +562,13 @@ static void main_read_sram(struct core *core, const char *content_name)
 	const char *name = MTY_SprintfDL("%s.srm", content_name);
 
 	size_t size = 0;
-	void *sram = MTY_ReadFile(MTY_JoinPath(core_get_save_dir(core), name), &size);
+	void *sram = MTY_ReadFile(MTY_JoinPath(main_save_dir(), name), &size);
 	if (sram) {
-		core_set_sram(core, sram, size);
-		MTY_Free(sram);
+		size_t wsize = 0;
+		void *wsram = core_get_sram(core, &wsize);
+
+		if (wsram && wsize <= size)
+			memcpy(wsram, sram, size);
 	}
 }
 
@@ -559,27 +581,30 @@ static void main_save_sram(struct core *core, const char *content_name)
 	void *sram = core_get_sram(core, &size);
 	if (sram) {
 		const char *name = MTY_SprintfDL("%s.srm", content_name);
-		const char *dir = core_get_save_dir(core);
+		const char *dir = main_save_dir();
 
 		MTY_Mkdir(dir);
 		MTY_WriteFile(MTY_JoinPath(dir, name), sram, size);
-		MTY_Free(sram);
 	}
 }
 
-static void main_unload(struct main *ctx, bool unload_core)
+static void main_unload(struct main *ctx)
 {
 	main_save_sram(ctx->core, ctx->content_name);
+	core_unload(&ctx->core);
+	loader_unload();
 
-	if (unload_core) {
-		core_unload(&ctx->core);
-
-	} else {
-		core_unload_game(ctx->core);
-	}
-
+	MTY_Free(ctx->game_path);
 	MTY_Free(ctx->content_name);
+	ctx->game_path = NULL;
 	ctx->content_name = NULL;
+}
+
+static bool main_use_core_interface(const char *core)
+{
+	if (!strcmp(core, "mesen2")) return true;
+
+	return false;
 }
 
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
@@ -590,7 +615,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 	if (!core)
 		return;
 
-	main_unload(ctx, true);
+	main_unload(ctx);
 
 	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
 	const char *core_path = MTY_JoinPath(MTY_JoinPath(main_asset_dir(), "cores"), cname);
@@ -600,7 +625,10 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	// If core is on the system and matches our internal hash, try to use it
 	if (file_ok) {
-		ctx->core = core_load(core_path, main_asset_dir());
+		if (!loader_load(core_path, !main_use_core_interface(core)))
+			return;
+
+		ctx->core = core_load(core_path, main_asset_dir(), main_save_dir());
 		if (!ctx->core)
 			return;
 
@@ -613,6 +641,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		if (!core_load_game(ctx->core, name))
 			return;
 
+		ctx->game_path = MTY_Strdup(name);
 		ctx->content_name = MTY_Strdup(MTY_GetFileName(name, false));
 		main_read_sram(ctx->core, ctx->content_name);
 
@@ -761,13 +790,13 @@ static void main_post_ui_state(struct main *ctx)
 	MTY_JSONObjSetItem(msg, "core_opts", core_opts);
 
 	uint32_t vlen = 0;
-	const struct core_variable *vars = core_get_variables(ctx->core, &vlen);
+	const struct core_setting *vars = core_get_settings(ctx->core, &vlen);
 
 	for (uint32_t x = 0; x < vlen; x++) {
 		const char *desc = vars[x].desc;
 		const char *key = vars[x].key;
 
-		const char *cur = core_get_variable(ctx->core, key);
+		const char *cur = core_get_setting(ctx->core, key);
 		if (!cur)
 			cur = vars[x].opts[0];
 
@@ -786,7 +815,7 @@ static void main_post_ui_state(struct main *ctx)
 	}
 
 	// Other native state
-	bool has_disks = core_has_disk_interface(ctx->core);
+	bool has_disks = core_get_num_disks(ctx->core) > 0;
 	MTY_JSON *nstate = MTY_JSONObjCreate();
 	MTY_JSONObjSetItem(msg, "nstate", nstate);
 	MTY_JSONObjSetBool(nstate, "pause", ctx->paused);
@@ -865,14 +894,13 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "reload")) {
-			const char *name = core_get_game_path(ctx->core);
+			if (!ctx->game_path)
+				goto except;
 
-			if (name) {
-				struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
-				evt.fetch_core = true;
-				snprintf(evt.game, MTY_PATH_MAX, "%s", name);
-				main_push_app_event(&evt, ctx);
-			}
+			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
+			evt.fetch_core = true;
+			snprintf(evt.game, MTY_PATH_MAX, "%s", ctx->game_path);
+			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "core-reset")) {
 			struct app_event evt = {.type = APP_EVENT_CLEAR_OPTS, .rt = true};
@@ -1056,7 +1084,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			}
 			case APP_EVENT_UNLOAD_GAME: {
-				main_unload(ctx, false);
+				main_unload(ctx);
 
 				struct app_event tevt = {.type = APP_EVENT_TITLE};
 				snprintf(tevt.title, APP_TITLE_MAX, "%s", APP_NAME);
@@ -1066,7 +1094,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			case APP_EVENT_CLEAR_OPTS: {
 				MTY_JSONDestroy(&ctx->core_options);
 				ctx->core_options = MTY_JSONObjCreate();
-				core_clear_variables(ctx->core);
+				core_clear_settings(ctx->core);
 
 				struct app_event sevt = {.type = APP_EVENT_STATE};
 				main_push_app_event(&sevt, ctx);
@@ -1074,7 +1102,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			}
 			case APP_EVENT_CORE_OPT:
 				MTY_JSONObjSetString(ctx->core_options, evt->opt.key, evt->opt.val);
-				core_set_variable(ctx->core, evt->opt.key, evt->opt.val);
+				core_set_setting(ctx->core, evt->opt.key, evt->opt.val);
 				break;
 			case APP_EVENT_SAVE_STATE: {
 				if (!ctx->content_name || !core_game_is_loaded(ctx->core))
@@ -1117,7 +1145,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			}
 			case APP_EVENT_SET_DISK:
-				core_set_disk(ctx->core, evt->disk);
+				core_set_disk(ctx->core, evt->disk, NULL);
 				break;
 			case APP_EVENT_HIDE_MENU:
 				main_ui_show(ctx->app, ctx->window, false);
@@ -1263,7 +1291,7 @@ static void *main_render_thread(void *opaque)
 
 		} else {
 			if (loaded) {
-				main_video(NULL, 0, 0, 0, ctx);
+				main_video(NULL, CORE_COLOR_FORMAT_UNKNOWN, 0, 0, 0, ctx);
 
 			} else {
 				MTY_WindowClear(ctx->app, ctx->window, 0, 0, 0, 1);
@@ -1280,7 +1308,7 @@ static void *main_render_thread(void *opaque)
 
 	MTY_WindowSetGFX(ctx->app, ctx->window, MTY_GFX_NONE, false);
 
-	main_unload(ctx, true);
+	main_unload(ctx);
 
 	return NULL;
 }
@@ -1402,6 +1430,9 @@ int32_t main(int32_t argc, char **argv)
 {
 	MTY_HttpAsyncCreate(4);
 	MTY_Mkdir(main_asset_dir());
+
+	// Get the function pointers assigned
+	loader_load(NULL, true);
 
 	struct main ctx = {0};
 	ctx.running = true;

@@ -3,8 +3,9 @@ ARCH = $(shell uname -m)
 NAME = merton
 
 OBJS = \
-	src/main.o \
-	src/core.o
+	src/core.o \
+	src/loader.o \
+	src/main.o
 
 INCLUDES = \
 	-I. \

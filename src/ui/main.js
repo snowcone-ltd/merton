@@ -112,7 +112,7 @@ const MENU_ITEMS = [
 const SYSTEMS = {
 	nes: {
 		name: 'NES',
-		cores: ['mesen', 'merton-nes']
+		cores: ['mesen', 'mesen2', 'merton-nes']
 	},
 	snes: {
 		name: 'SNES',

@@ -1,4 +1,5 @@
 #include "core.h"
+#include "rcore.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -13,7 +14,6 @@
 struct core {
 	MTY_SO *so;
 	bool game_loaded;
-	char *game_path;
 	char *game_data;
 	size_t game_data_size;
 
@@ -58,10 +58,9 @@ static unsigned RETRO_CONTROLLER_DEVICE = RETRO_DEVICE_JOYPAD;
 static unsigned RETRO_REGION;
 
 static uint32_t CORE_NUM_VARIABLES;
-static struct core_variable CORE_VARIABLES[CORE_VARIABLES_MAX];
+static struct core_setting CORE_VARIABLES[CORE_VARIABLES_MAX];
 static MTY_Hash *CORE_OPTS;
 static bool CORE_OPT_SET;
-static bool CORE_HAS_DISK_INTERFACE;
 
 static CORE_LOG_FUNC CORE_LOG;
 static CORE_AUDIO_FUNC CORE_AUDIO;
@@ -119,7 +118,7 @@ static const enum core_axis CORE_AXIS_MAP[3][2] = {
 
 // libretro callbacks
 
-static void core_retro_log_printf(enum retro_log_level level, const char *fmt, ...)
+static void rcore_retro_log_printf(enum retro_log_level level, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -134,28 +133,28 @@ static void core_retro_log_printf(enum retro_log_level level, const char *fmt, .
 	MTY_Free(msg);
 }
 
-static bool core_retro_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength)
+static bool rcore_retro_rumble(unsigned port, enum retro_rumble_effect effect, uint16_t strength)
 {
 	// TODO
 
 	return false;
 }
 
-static uintptr_t core_retro_hw_get_current_framebuffer(void)
+static uintptr_t rcore_retro_hw_get_current_framebuffer(void)
 {
 	// TODO
 
 	return 0;
 }
 
-static retro_proc_address_t core_retro_hw_get_proc_address(const char *sym)
+static retro_proc_address_t rcore_retro_hw_get_proc_address(const char *sym)
 {
 	// TODO
 
 	return NULL;
 }
 
-static void core_parse_variable(struct core_variable *var, const char *key, const char *val)
+static void rcore_parse_setting(struct core_setting *var, const char *key, const char *val)
 {
 	snprintf(var->key, CORE_KEY_NAME_MAX, "%s", key);
 
@@ -182,7 +181,7 @@ static void core_parse_variable(struct core_variable *var, const char *key, cons
 	MTY_Free(dup);
 }
 
-static const char *core_variable_default(const char *key)
+static const char *rcore_setting_default(const char *key)
 {
 	// Hardware rendering is not set up, make sure to use
 	// available software renderers
@@ -196,7 +195,7 @@ static const char *core_variable_default(const char *key)
 	return NULL;
 }
 
-static bool core_retro_environment(unsigned cmd, void *data)
+static bool rcore_retro_environment(unsigned cmd, void *data)
 {
 	switch (cmd) {
 		case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
@@ -209,7 +208,7 @@ static bool core_retro_environment(unsigned cmd, void *data)
 		}
 		case RETRO_ENVIRONMENT_GET_LOG_INTERFACE: {
 			struct retro_log_callback *arg = data;
-			arg->log = core_retro_log_printf;
+			arg->log = rcore_retro_log_printf;
 
 			return true;
 		}
@@ -271,10 +270,10 @@ static bool core_retro_environment(unsigned cmd, void *data)
 					break;
 
 				if (CORE_NUM_VARIABLES < CORE_VARIABLES_MAX) {
-					core_parse_variable(&CORE_VARIABLES[CORE_NUM_VARIABLES], v->key, v->value);
+					rcore_parse_setting(&CORE_VARIABLES[CORE_NUM_VARIABLES], v->key, v->value);
 
 					if (!MTY_HashGet(CORE_OPTS, v->key)) {
-						const char *default_val = core_variable_default(v->key);
+						const char *default_val = rcore_setting_default(v->key);
 
 						if (!default_val)
 							default_val = CORE_VARIABLES[CORE_NUM_VARIABLES].opts[0];
@@ -319,13 +318,12 @@ static bool core_retro_environment(unsigned cmd, void *data)
 		case RETRO_ENVIRONMENT_SET_DISK_CONTROL_INTERFACE: {
 			const struct retro_disk_control_callback *arg = data;
 			RETRO_DISK_CONTROL_CALLBACK = *arg;
-			CORE_HAS_DISK_INTERFACE = true;
 
 			return true;
 		}
 		case RETRO_ENVIRONMENT_GET_RUMBLE_INTERFACE: {
 			struct retro_rumble_interface *arg = data;
-			arg->set_rumble_state = core_retro_rumble;
+			arg->set_rumble_state = rcore_retro_rumble;
 
 			return true;
 		}
@@ -336,8 +334,8 @@ static bool core_retro_environment(unsigned cmd, void *data)
 
 			struct retro_hw_render_callback *arg = data;
 
-			arg->get_current_framebuffer = core_retro_hw_get_current_framebuffer;
-			arg->get_proc_address = core_retro_hw_get_proc_address;
+			arg->get_current_framebuffer = rcore_retro_hw_get_current_framebuffer;
+			arg->get_proc_address = rcore_retro_hw_get_proc_address;
 
 			// arg->context_reset();
 
@@ -444,22 +442,35 @@ static bool core_retro_environment(unsigned cmd, void *data)
 	return false;
 }
 
-static void core_retro_video_refresh(const void *data, unsigned width,
+static enum core_color_format rcore_color_format(void)
+{
+	switch (RETRO_PIXEL_FORMAT) {
+		case RETRO_PIXEL_FORMAT_XRGB8888: return CORE_COLOR_FORMAT_BGRA;
+		case RETRO_PIXEL_FORMAT_RGB565:   return CORE_COLOR_FORMAT_B5G6R5;
+		case RETRO_PIXEL_FORMAT_0RGB1555: return CORE_COLOR_FORMAT_B5G5R5A1;
+		default:
+			break;
+	}
+
+	return CORE_COLOR_FORMAT_UNKNOWN;
+}
+
+static void rcore_retro_video_refresh(const void *data, unsigned width,
 	unsigned height, size_t pitch)
 {
 	if (CORE_VIDEO)
-		CORE_VIDEO(data, width, height, pitch, CORE_VIDEO_OPAQUE);
+		CORE_VIDEO(data, rcore_color_format(), width, height, pitch, CORE_VIDEO_OPAQUE);
 }
 
-static void core_output_audio(size_t batch)
+static void rcore_output_audio(size_t batch)
 {
 	if (CORE_AUDIO && CORE_NUM_FRAMES > batch) {
-		CORE_AUDIO(CORE_FRAMES, CORE_NUM_FRAMES, CORE_AUDIO_OPAQUE);
+		CORE_AUDIO(CORE_FRAMES, CORE_NUM_FRAMES, lrint(RETRO_SYSTEM_TIMING.sample_rate), CORE_AUDIO_OPAQUE);
 		CORE_NUM_FRAMES = 0;
 	}
 }
 
-static void core_retro_audio_sample(int16_t left, int16_t right)
+static void rcore_retro_audio_sample(int16_t left, int16_t right)
 {
 	if (CORE_NUM_FRAMES + 1 <= CORE_FRAMES_MAX) {
 		CORE_FRAMES[CORE_NUM_FRAMES * 2] = left;
@@ -467,26 +478,26 @@ static void core_retro_audio_sample(int16_t left, int16_t right)
 		CORE_NUM_FRAMES++;
 	}
 
-	core_output_audio(CORE_AUDIO_BATCH);
+	rcore_output_audio(CORE_AUDIO_BATCH);
 }
 
-static size_t core_retro_audio_sample_batch(const int16_t *data, size_t frames)
+static size_t rcore_retro_audio_sample_batch(const int16_t *data, size_t frames)
 {
 	if (CORE_NUM_FRAMES + frames <= CORE_FRAMES_MAX) {
 		memcpy(CORE_FRAMES + CORE_NUM_FRAMES * 2, data, frames * 4);
 		CORE_NUM_FRAMES += frames;
 	}
 
-	core_output_audio(CORE_AUDIO_BATCH);
+	rcore_output_audio(CORE_AUDIO_BATCH);
 
 	return frames;
 }
 
-static void core_retro_input_poll(void)
+static void rcore_retro_input_poll(void)
 {
 }
 
-static int16_t core_retro_input_state(unsigned port, unsigned device,
+static int16_t rcore_retro_input_state(unsigned port, unsigned device,
 	unsigned index, unsigned id)
 {
 	if (port >= CORE_PLAYERS_MAX)
@@ -513,7 +524,7 @@ static int16_t core_retro_input_state(unsigned port, unsigned device,
 
 // Core API
 
-static bool core_load_symbols(struct core *ctx)
+static bool rcore_load_symbols(struct core *ctx)
 {
 	#define CORE_LOAD_SYM(sym) \
 		ctx->sym = MTY_SOGetSymbol(ctx->so, #sym); \
@@ -545,13 +556,13 @@ static bool core_load_symbols(struct core *ctx)
 	return true;
 }
 
-struct core *core_load(const char *name, const char *asset_dir)
+struct core *rcore_load(const char *name, const char *asset_dir, const char *save_dir)
 {
 	struct core *ctx = MTY_Alloc(1, sizeof(struct core));
 
 	bool r = true;
 
-	snprintf(CORE_SAVE_DIR, MTY_PATH_MAX, "%s", MTY_JoinPath(asset_dir, "save"));
+	snprintf(CORE_SAVE_DIR, MTY_PATH_MAX, "%s", save_dir);
 	snprintf(CORE_SYSTEM_DIR, MTY_PATH_MAX, "%s", MTY_JoinPath(asset_dir, "system"));
 
 	CORE_OPTS = MTY_HashCreate(0);
@@ -562,7 +573,7 @@ struct core *core_load(const char *name, const char *asset_dir)
 		goto except;
 	}
 
-	r = core_load_symbols(ctx);
+	r = rcore_load_symbols(ctx);
 	if (!r)
 		goto except;
 
@@ -570,39 +581,38 @@ struct core *core_load(const char *name, const char *asset_dir)
 	if (!r)
 		goto except;
 
-	ctx->retro_set_environment(core_retro_environment);
+	ctx->retro_set_environment(rcore_retro_environment);
 	ctx->retro_init();
 
-	ctx->retro_set_video_refresh(core_retro_video_refresh);
-	ctx->retro_set_audio_sample(core_retro_audio_sample);
-	ctx->retro_set_audio_sample_batch(core_retro_audio_sample_batch);
-	ctx->retro_set_input_poll(core_retro_input_poll);
-	ctx->retro_set_input_state(core_retro_input_state);
+	ctx->retro_set_video_refresh(rcore_retro_video_refresh);
+	ctx->retro_set_audio_sample(rcore_retro_audio_sample);
+	ctx->retro_set_audio_sample_batch(rcore_retro_audio_sample_batch);
+	ctx->retro_set_input_poll(rcore_retro_input_poll);
+	ctx->retro_set_input_state(rcore_retro_input_state);
 
 	ctx->retro_get_system_info(&ctx->system_info);
 
 	except:
 
 	if (!r)
-		core_unload(&ctx);
+		rcore_unload(&ctx);
 
 	return ctx;
 }
 
-void core_unload(struct core **core)
+void rcore_unload(struct core **core)
 {
 	if (!core || !*core)
 		return;
 
 	struct core *ctx = *core;
 
-	core_unload_game(ctx);
+	rcore_unload_game(ctx);
 
 	if (ctx->retro_deinit)
 		ctx->retro_deinit();
 
 	MTY_SOUnload(&ctx->so);
-	MTY_Free(ctx->game_path);
 	MTY_Free(ctx->game_data);
 
 	// Globals
@@ -614,7 +624,7 @@ void core_unload(struct core **core)
 	RETRO_REGION = 0;
 
 	CORE_NUM_VARIABLES = 0;
-	memset(CORE_VARIABLES, 0, sizeof(struct core_variable) * CORE_VARIABLES_MAX);
+	memset(CORE_VARIABLES, 0, sizeof(struct core_setting) * CORE_VARIABLES_MAX);
 
 	MTY_HashDestroy(&CORE_OPTS, MTY_Free);
 	CORE_OPT_SET = false;
@@ -626,7 +636,6 @@ void core_unload(struct core **core)
 	CORE_AUDIO_OPAQUE = NULL;
 	CORE_VIDEO_OPAQUE = NULL;
 	CORE_NUM_FRAMES = 0;
-	CORE_HAS_DISK_INTERFACE = false;
 
 	memset(CORE_BUTTONS, 0, sizeof(bool) * 2 * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 	memset(CORE_AXES, 0, sizeof(int16_t) * CORE_PLAYERS_MAX * CORE_AXIS_MAX);
@@ -635,22 +644,19 @@ void core_unload(struct core **core)
 	*core = NULL;
 }
 
-bool core_load_game(struct core *ctx, const char *path)
+bool rcore_load_game(struct core *ctx, const char *path)
 {
 	if (!ctx)
 		return false;
 
-	core_unload_game(ctx);
-
-	MTY_Free(ctx->game_path);
-	ctx->game_path = MTY_Strdup(path);
+	rcore_unload_game(ctx);
 
 	MTY_Free(ctx->game_data);
 	ctx->game_data = NULL;
 	ctx->game_data_size = 0;
 
 	struct retro_game_info game = {0};
-	game.path = ctx->game_path;
+	game.path = path;
 	game.meta = "merton";
 
 	if (!ctx->system_info.need_fullpath) {
@@ -678,7 +684,7 @@ bool core_load_game(struct core *ctx, const char *path)
 	return ctx->game_loaded;
 }
 
-void core_unload_game(struct core *ctx)
+void rcore_unload_game(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return;
@@ -687,7 +693,7 @@ void core_unload_game(struct core *ctx)
 	ctx->game_loaded = false;
 }
 
-void core_reset_game(struct core *ctx)
+void rcore_reset_game(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return;
@@ -695,42 +701,18 @@ void core_reset_game(struct core *ctx)
 	ctx->retro_reset();
 }
 
-void core_run_frame(struct core *ctx)
+void rcore_run_frame(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return;
 
 	ctx->retro_run();
-	core_output_audio(0);
+	rcore_output_audio(0);
 
 	memcpy(CORE_BUTTONS[0], CORE_BUTTONS[1], sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 }
 
-enum core_color_format core_get_color_format(struct core *ctx)
-{
-	if (!ctx)
-		return CORE_COLOR_FORMAT_UNKNOWN;
-
-	switch (RETRO_PIXEL_FORMAT) {
-		case RETRO_PIXEL_FORMAT_XRGB8888: return CORE_COLOR_FORMAT_BGRA;
-		case RETRO_PIXEL_FORMAT_RGB565:   return CORE_COLOR_FORMAT_B5G6R5;
-		case RETRO_PIXEL_FORMAT_0RGB1555: return CORE_COLOR_FORMAT_B5G5R5A1;
-		default:
-			break;
-	}
-
-	return CORE_COLOR_FORMAT_UNKNOWN;
-}
-
-uint32_t core_get_sample_rate(struct core *ctx)
-{
-	if (!ctx || !ctx->game_loaded)
-		return 0;
-
-	return lrint(RETRO_SYSTEM_TIMING.sample_rate);
-}
-
-double core_get_frame_rate(struct core *ctx)
+double rcore_get_frame_rate(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 60.0;
@@ -738,7 +720,7 @@ double core_get_frame_rate(struct core *ctx)
 	return RETRO_SYSTEM_TIMING.fps;
 }
 
-float core_get_aspect_ratio(struct core *ctx)
+float rcore_get_aspect_ratio(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 0.0f;
@@ -751,7 +733,7 @@ float core_get_aspect_ratio(struct core *ctx)
 	return ar;
 }
 
-void core_set_button(struct core *ctx, uint8_t player, enum core_button button, bool pressed)
+void rcore_set_button(struct core *ctx, uint8_t player, enum core_button button, bool pressed)
 {
 	if (!ctx)
 		return;
@@ -760,7 +742,7 @@ void core_set_button(struct core *ctx, uint8_t player, enum core_button button, 
 	CORE_BUTTONS[1][player][button] = pressed;
 }
 
-void core_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value)
+void rcore_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value)
 {
 	if (!ctx)
 		return;
@@ -768,7 +750,7 @@ void core_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_
 	CORE_AXES[player][axis] = value;
 }
 
-void *core_get_state(struct core *ctx, size_t *size)
+void *rcore_get_state(struct core *ctx, size_t *size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return NULL;
@@ -786,7 +768,7 @@ void *core_get_state(struct core *ctx, size_t *size)
 	return state;
 }
 
-bool core_set_state(struct core *ctx, const void *state, size_t size)
+bool rcore_set_state(struct core *ctx, const void *state, size_t size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return false;
@@ -794,12 +776,7 @@ bool core_set_state(struct core *ctx, const void *state, size_t size)
 	return ctx->retro_unserialize(state, size);
 }
 
-bool core_has_disk_interface(struct core *ctx)
-{
-	return CORE_HAS_DISK_INTERFACE;
-}
-
-uint8_t core_get_num_disks(struct core *ctx)
+uint8_t rcore_get_num_disks(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 0;
@@ -810,7 +787,7 @@ uint8_t core_get_num_disks(struct core *ctx)
 	return 0;
 }
 
-int8_t core_get_disk(struct core *ctx)
+int8_t rcore_get_disk(struct core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 0;
@@ -825,10 +802,12 @@ int8_t core_get_disk(struct core *ctx)
 	return -1;
 }
 
-bool core_set_disk(struct core *ctx, int8_t disk)
+bool rcore_set_disk(struct core *ctx, int8_t disk, const char *path)
 {
 	if (!ctx || !ctx->game_loaded)
 		return false;
+
+	// TODO This is where we would load PSX disks
 
 	if (disk < 0) {
 		if (RETRO_DISK_CONTROL_CALLBACK.set_eject_state)
@@ -846,14 +825,7 @@ bool core_set_disk(struct core *ctx, int8_t disk)
 	return false;
 }
 
-bool core_load_disk(struct core *ctx, uint8_t disk, const char *path)
-{
-	// TODO This is where we would load PSX disks
-
-	return false;
-}
-
-void *core_get_sram(struct core *ctx, size_t *size)
+void *rcore_get_sram(struct core *ctx, size_t *size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return NULL;
@@ -862,61 +834,21 @@ void *core_get_sram(struct core *ctx, size_t *size)
 	if (*size == 0)
 		return NULL;
 
-	void *sram = ctx->retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
-	if (!sram)
-		return NULL;
-
-	void *dup = MTY_Alloc(*size, 1);
-	memcpy(dup, sram, *size);
-
-	return dup;
+	return ctx->retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
 }
 
-bool core_set_sram(struct core *ctx, const void *sram, size_t size)
-{
-	if (!ctx || !ctx->game_loaded)
-		return false;
-
-	if (ctx->retro_get_memory_size(RETRO_MEMORY_SAVE_RAM) != size)
-		return false;
-
-	void *cur_sram = ctx->retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
-	if (!cur_sram)
-		return false;
-
-	memcpy(cur_sram, sram, size);
-
-	return true;
-}
-
-const char *core_get_save_dir(struct core *ctx)
-{
-	if (!ctx)
-		return NULL;
-
-	return CORE_SAVE_DIR;
-}
-
-const char *core_get_game_path(struct core *ctx)
-{
-	if (!ctx)
-		return NULL;
-
-	return ctx->game_path;
-}
-
-bool core_game_is_loaded(struct core *ctx)
+bool rcore_game_is_loaded(struct core *ctx)
 {
 	return ctx ? ctx->game_loaded : false;
 }
 
-void core_set_log_func(CORE_LOG_FUNC func, void *opaque)
+void rcore_set_log_func(CORE_LOG_FUNC func, void *opaque)
 {
 	CORE_LOG = func;
 	CORE_LOG_OPAQUE = opaque;
 }
 
-void core_set_audio_func(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque)
+void rcore_set_audio_func(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque)
 {
 	if (!ctx)
 		return;
@@ -925,7 +857,7 @@ void core_set_audio_func(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque)
 	CORE_AUDIO_OPAQUE = opaque;
 }
 
-void core_set_video_func(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque)
+void rcore_set_video_func(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque)
 {
 	if (!ctx)
 		return;
@@ -934,14 +866,14 @@ void core_set_video_func(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque)
 	CORE_VIDEO_OPAQUE = opaque;
 }
 
-const struct core_variable *core_get_variables(struct core *ctx, uint32_t *len)
+const struct core_setting *rcore_get_settings(struct core *ctx, uint32_t *len)
 {
 	*len = CORE_NUM_VARIABLES;
 
 	return CORE_VARIABLES;
 }
 
-void core_set_variable(struct core *ctx, const char *key, const char *val)
+void rcore_set_setting(struct core *ctx, const char *key, const char *val)
 {
 	if (!ctx)
 		return;
@@ -951,7 +883,7 @@ void core_set_variable(struct core *ctx, const char *key, const char *val)
 	CORE_OPT_SET = true;
 }
 
-const char *core_get_variable(struct core *ctx, const char *key)
+const char *rcore_get_setting(struct core *ctx, const char *key)
 {
 	if (!ctx)
 		return NULL;
@@ -959,7 +891,7 @@ const char *core_get_variable(struct core *ctx, const char *key)
 	return MTY_HashGet(CORE_OPTS, key);
 }
 
-void core_clear_variables(struct core *ctx)
+void rcore_clear_settings(struct core *ctx)
 {
 	MTY_HashDestroy(&CORE_OPTS, MTY_Free);
 	CORE_OPTS = MTY_HashCreate(0);

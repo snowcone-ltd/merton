@@ -3,8 +3,9 @@ ARCH = %%Platform%%
 BIN = merton.exe
 
 OBJS = \
-	src\main.obj \
-	src\core.obj
+	src\core.obj \
+	src\loader.obj \
+	src\main.obj
 
 RESOURCES = \
 	assets\$(TARGET)\icon.res \
