@@ -556,14 +556,14 @@ static bool rcore_load_symbols(struct core *ctx)
 	return true;
 }
 
-struct core *rcore_load(const char *name, const char *asset_dir, const char *save_dir)
+struct core *rcore_load(const char *name, const char *system_dir, const char *save_dir)
 {
 	struct core *ctx = MTY_Alloc(1, sizeof(struct core));
 
 	bool r = true;
 
 	snprintf(CORE_SAVE_DIR, MTY_PATH_MAX, "%s", save_dir);
-	snprintf(CORE_SYSTEM_DIR, MTY_PATH_MAX, "%s", MTY_JoinPath(asset_dir, "system"));
+	snprintf(CORE_SYSTEM_DIR, MTY_PATH_MAX, "%s", system_dir);
 
 	CORE_OPTS = MTY_HashCreate(0);
 
@@ -842,7 +842,7 @@ bool rcore_game_is_loaded(struct core *ctx)
 	return ctx ? ctx->game_loaded : false;
 }
 
-void rcore_set_log_func(CORE_LOG_FUNC func, void *opaque)
+void rcore_set_log_func(struct core *ctx, CORE_LOG_FUNC func, void *opaque)
 {
 	CORE_LOG = func;
 	CORE_LOG_OPAQUE = opaque;

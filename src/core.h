@@ -85,7 +85,7 @@ extern "C" {
 #endif
 
 EXPORT struct core *
-FP(core_load)(const char *name, const char *asset_dir, const char *save_dir);
+FP(core_load)(const char *name, const char *system_dir, const char *save_dir);
 
 EXPORT void
 FP(core_unload)(struct core **core);
@@ -136,7 +136,7 @@ EXPORT float
 FP(core_get_aspect_ratio)(struct core *ctx);
 
 EXPORT void
-FP(core_set_log_func)(CORE_LOG_FUNC func, void *opaque);
+FP(core_set_log_func)(struct core *ctx, CORE_LOG_FUNC func, void *opaque);
 
 EXPORT void
 FP(core_set_audio_func)(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque);

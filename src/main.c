@@ -145,6 +145,11 @@ static const char *main_save_dir(void)
 	return MTY_JoinPath(main_asset_dir(), "save");
 }
 
+static const char *main_system_dir(void)
+{
+	return MTY_JoinPath(main_asset_dir(), "system");
+}
+
 
 // Config
 
@@ -567,7 +572,7 @@ static void main_read_sram(struct core *core, const char *content_name)
 		size_t wsize = 0;
 		void *wsram = core_get_sram(core, &wsize);
 
-		if (wsram && wsize <= size)
+		if (wsram && wsize >= size)
 			memcpy(wsram, sram, size);
 	}
 }
@@ -628,13 +633,13 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		if (!loader_load(core_path, !main_use_core_interface(core)))
 			return;
 
-		ctx->core = core_load(core_path, main_asset_dir(), main_save_dir());
+		ctx->core = core_load(core_path, main_system_dir(), main_save_dir());
 		if (!ctx->core)
 			return;
 
 		main_set_core_options(ctx);
 
-		core_set_log_func(main_log, &ctx);
+		core_set_log_func(ctx->core, main_log, &ctx);
 		core_set_audio_func(ctx->core, main_audio, ctx);
 		core_set_video_func(ctx->core, main_video, ctx);
 
