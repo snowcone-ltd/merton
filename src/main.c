@@ -527,6 +527,7 @@ static void main_log(const char *msg, void *opaque)
 static enum core_system main_get_core_system(const char *key)
 {
 	if (!strcmp(key, "nes")) return CORE_SYSTEM_NES;
+	if (!strcmp(key, "ms")) return CORE_SYSTEM_SMS;
 	if (!strcmp(key, "gameboy")) return CORE_SYSTEM_GAMEBOY;
 	if (!strcmp(key, "snes")) return CORE_SYSTEM_SNES;
 

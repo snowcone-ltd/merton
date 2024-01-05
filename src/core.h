@@ -71,8 +71,9 @@ enum core_color_format {
 enum core_system {
 	CORE_SYSTEM_UNKNOWN = 0,
 	CORE_SYSTEM_NES     = 1,
-	CORE_SYSTEM_GAMEBOY = 2,
-	CORE_SYSTEM_SNES    = 3,
+	CORE_SYSTEM_SMS     = 2,
+	CORE_SYSTEM_GAMEBOY = 3,
+	CORE_SYSTEM_SNES    = 4,
 };
 
 struct core_setting {

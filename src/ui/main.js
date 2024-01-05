@@ -136,7 +136,7 @@ const SYSTEMS = {
 	},
 	ms: {
 		name: 'Master System',
-		cores: ['genesis_plus_gx']
+		cores: ['genesis_plus_gx', 'mesen2']
 	},
 	n64: {
 		name: 'N64',
