@@ -5,8 +5,8 @@
 ### Design Goals
 
 - Small binary footprint
-- Modern, simple user interface
-- Complete cross platform support
+- Simple user interface
+- Cross platform support
 - Limited, straightforward feature set
 - Works well "out of the box"
 - Intuitive ROM and game loading
@@ -14,6 +14,23 @@
 - Curated list of systems and cores w/ seamless core loading
 
 If you're interested in being part of the journey, join us on [Discord](https://discord.gg/VJYMmZM6z8).
+
+### Systems
+
+- Atari 2600
+- Nintendo Entertainment System (Famicom)
+- Master System / SG-1000 / Game Gear
+- TurboGrafx-16 (PC Engine) / CD-ROM / Super CD-ROM / Arcade Card
+- Genesis (Mega Drive)
+- Gameboy
+- TODO: Neo Geo
+- Super Nintendo Entertainment System (Super Famicom)
+- TODO: 3DO
+- TODO: Sega Saturn
+- PlayStation
+- Nintendo 64
+- TODO: WonderSwan
+- Game Boy Advance
 
 ### Building
 

@@ -110,46 +110,46 @@ const MENU_ITEMS = [
 ];
 
 const SYSTEMS = {
-	nes: {
-		name: 'NES',
-		cores: ['mesen', 'mesen2', 'merton-nes']
-	},
-	snes: {
-		name: 'SNES',
-		cores: ['bsnes', 'mesen-s', 'mesen2', 'snes9x']
-	},
 	atari2600: {
 		name: 'Atari 2600',
 		cores: ['stella']
 	},
-	gameboy: {
-		name: 'Game Boy',
-		cores: ['sameboy', 'mesen2']
-	},
-	gba: {
-		name: 'Game Boy Advance',
-		cores: ['mgba']
-	},
-	genesis: {
-		name: 'Genesis',
-		cores: ['genesis_plus_gx']
+	nes: {
+		name: 'NES',
+		cores: ['mesen', 'mesen2', 'merton-nes']
 	},
 	ms: {
 		name: 'Master System',
 		cores: ['genesis_plus_gx', 'mesen2']
 	},
-	n64: {
-		name: 'N64',
-		cores: ['mupen64plus_next']
+	tg16: {
+		name: 'TurboGrafx-16',
+		cores: ['mednafen_pce', 'mesen2']
+	},
+	genesis: {
+		name: 'Genesis',
+		cores: ['genesis_plus_gx']
+	},
+	gameboy: {
+		name: 'Game Boy',
+		cores: ['sameboy', 'mesen2']
+	},
+	snes: {
+		name: 'SNES',
+		cores: ['bsnes', 'mesen-s', 'mesen2', 'snes9x']
 	},
 	ps: {
 		name: 'PlayStation',
 		cores: ['swanstation']
 	},
-	tg16: {
-		name: 'TurboGrafx-16',
-		cores: ['mednafen_pce', 'mesen2']
-	}
+	n64: {
+		name: 'N64',
+		cores: ['mupen64plus_next']
+	},
+	gba: {
+		name: 'Game Boy Advance',
+		cores: ['mgba']
+	},
 };
 
 
