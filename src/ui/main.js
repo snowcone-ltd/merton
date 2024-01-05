@@ -148,7 +148,7 @@ const SYSTEMS = {
 	},
 	tg16: {
 		name: 'TurboGrafx-16',
-		cores: ['mednafen_pce']
+		cores: ['mednafen_pce', 'mesen2']
 	}
 };
 
