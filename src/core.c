@@ -644,7 +644,7 @@ void rcore_unload(struct core **core)
 	*core = NULL;
 }
 
-bool rcore_load_game(struct core *ctx, const char *path)
+bool rcore_load_game(struct core *ctx, enum core_system system, const char *path)
 {
 	if (!ctx)
 		return false;

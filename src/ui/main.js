@@ -116,7 +116,7 @@ const SYSTEMS = {
 	},
 	snes: {
 		name: 'SNES',
-		cores: ['bsnes', 'mesen-s', 'snes9x']
+		cores: ['bsnes', 'mesen-s', 'mesen2', 'snes9x']
 	},
 	atari2600: {
 		name: 'Atari 2600',
@@ -124,7 +124,7 @@ const SYSTEMS = {
 	},
 	gameboy: {
 		name: 'Game Boy',
-		cores: ['sameboy']
+		cores: ['sameboy', 'mesen2']
 	},
 	gba: {
 		name: 'Game Boy Advance',

@@ -2,7 +2,7 @@
 
 struct core *rcore_load(const char *name, const char *system_dir, const char *save_dir);
 void rcore_unload(struct core **core);
-bool rcore_load_game(struct core *ctx, const char *path);
+bool rcore_load_game(struct core *ctx, enum core_system system, const char *path);
 void rcore_unload_game(struct core *ctx);
 void rcore_reset_game(struct core *ctx);
 void rcore_run_frame(struct core *ctx);

@@ -68,6 +68,13 @@ enum core_color_format {
 	CORE_COLOR_FORMAT_B5G5R5A1 = 3,
 };
 
+enum core_system {
+	CORE_SYSTEM_UNKNOWN = 0,
+	CORE_SYSTEM_NES     = 1,
+	CORE_SYSTEM_GAMEBOY = 2,
+	CORE_SYSTEM_SNES    = 3,
+};
+
 struct core_setting {
 	uint32_t nopts;
 	char key[CORE_KEY_NAME_MAX];
@@ -91,7 +98,7 @@ EXPORT void
 FP(core_unload)(struct core **core);
 
 EXPORT bool
-FP(core_load_game)(struct core *ctx, const char *path);
+FP(core_load_game)(struct core *ctx, enum core_system system, const char *path);
 
 EXPORT void
 FP(core_unload_game)(struct core *ctx);

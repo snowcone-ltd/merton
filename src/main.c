@@ -524,11 +524,19 @@ static void main_log(const char *msg, void *opaque)
 	printf("%s", msg);
 }
 
-static void main_get_system_by_ext(struct main *ctx, const char *name,
-	const char **core, const char **system)
+static enum core_system main_get_core_system(const char *key)
+{
+	if (!strcmp(key, "nes")) return CORE_SYSTEM_NES;
+	if (!strcmp(key, "gameboy")) return CORE_SYSTEM_GAMEBOY;
+	if (!strcmp(key, "snes")) return CORE_SYSTEM_SNES;
+
+	return CORE_SYSTEM_UNKNOWN;
+}
+
+static enum core_system main_get_system_by_ext(struct main *ctx, const char *name,
+	const char **core)
 {
 	*core = NULL;
-	*system = NULL;
 
 	const char *ext = MTY_GetFileExtension(name);
 
@@ -543,11 +551,12 @@ static void main_get_system_by_ext(struct main *ctx, const char *name,
 
 			if (substr && (substr[end] == '\0' || substr[end] == '|')) {
 				*core = CONFIG_GET_CORE(&ctx->cfg, key);
-				*system = key;
-				break;
+				return main_get_core_system(key);
 			}
 		}
 	}
+
+	return CORE_SYSTEM_UNKNOWN;
 }
 
 static void main_set_core_options(struct main *ctx)
@@ -615,8 +624,7 @@ static bool main_use_core_interface(const char *core)
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 {
 	const char *core = NULL;
-	const char *system = NULL;
-	main_get_system_by_ext(ctx, name, &core, &system);
+	enum core_system system = main_get_system_by_ext(ctx, name, &core);
 	if (!core)
 		return;
 
@@ -643,7 +651,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		core_set_audio_func(ctx->core, main_audio, ctx);
 		core_set_video_func(ctx->core, main_video, ctx);
 
-		if (!core_load_game(ctx->core, name))
+		if (!core_load_game(ctx->core, system, name))
 			return;
 
 		ctx->game_path = MTY_Strdup(name);
