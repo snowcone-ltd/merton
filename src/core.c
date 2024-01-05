@@ -644,7 +644,8 @@ void rcore_unload(struct core **core)
 	*core = NULL;
 }
 
-bool rcore_load_game(struct core *ctx, enum core_system system, const char *path)
+bool rcore_load_game(struct core *ctx, enum core_system system, const char *path,
+	const void *save_data, size_t save_data_size)
 {
 	if (!ctx)
 		return false;
@@ -679,6 +680,16 @@ bool rcore_load_game(struct core *ctx, enum core_system system, const char *path
 		RETRO_GAME_GEOMETRY = av_info.geometry;
 
 		RETRO_REGION = ctx->retro_get_region();
+
+		// Load SRAM
+		size_t sram_size = ctx->retro_get_memory_size(RETRO_MEMORY_SAVE_RAM);
+
+		if (sram_size > 0 && sram_size >= save_data_size) {
+			void *sram = ctx->retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
+
+			if (sram)
+				memcpy(sram, save_data, save_data_size);
+		}
 	}
 
 	return ctx->game_loaded;
@@ -825,7 +836,7 @@ bool rcore_set_disk(struct core *ctx, int8_t disk, const char *path)
 	return false;
 }
 
-void *rcore_get_sram(struct core *ctx, size_t *size)
+void *rcore_get_save_data(struct core *ctx, size_t *size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return NULL;
@@ -834,7 +845,14 @@ void *rcore_get_sram(struct core *ctx, size_t *size)
 	if (*size == 0)
 		return NULL;
 
-	return ctx->retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
+	const void *sdata = ctx->retro_get_memory_data(RETRO_MEMORY_SAVE_RAM);
+	if (!sdata)
+		return NULL;
+
+	void *copy = MTY_Alloc(*size, 1);
+	memcpy(copy, sdata, *size);
+
+	return copy;
 }
 
 bool rcore_game_is_loaded(struct core *ctx)

@@ -26,7 +26,7 @@ static void loader_set_rcore(void)
 	LOADER_SET_RCORE(core_get_num_disks);
 	LOADER_SET_RCORE(core_get_disk);
 	LOADER_SET_RCORE(core_set_disk);
-	LOADER_SET_RCORE(core_get_sram);
+	LOADER_SET_RCORE(core_get_save_data);
 	LOADER_SET_RCORE(core_game_is_loaded);
 	LOADER_SET_RCORE(core_get_frame_rate);
 	LOADER_SET_RCORE(core_get_aspect_ratio);
@@ -68,7 +68,7 @@ bool loader_load(const char *name, bool libretro)
 		LOADER_LOAD_SYM(core_get_num_disks);
 		LOADER_LOAD_SYM(core_get_disk);
 		LOADER_LOAD_SYM(core_set_disk);
-		LOADER_LOAD_SYM(core_get_sram);
+		LOADER_LOAD_SYM(core_get_save_data);
 		LOADER_LOAD_SYM(core_game_is_loaded);
 		LOADER_LOAD_SYM(core_get_frame_rate);
 		LOADER_LOAD_SYM(core_get_aspect_ratio);

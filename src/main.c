@@ -573,40 +573,33 @@ static void main_set_core_options(struct main *ctx)
 	}
 }
 
-static void main_read_sram(struct core *core, const char *content_name)
+static void *main_read_sdata(struct core *core, const char *content_name, size_t *size)
 {
 	const char *name = MTY_SprintfDL("%s.srm", content_name);
 
-	size_t size = 0;
-	void *sram = MTY_ReadFile(MTY_JoinPath(main_save_dir(), name), &size);
-	if (sram) {
-		size_t wsize = 0;
-		void *wsram = core_get_sram(core, &wsize);
-
-		if (wsram && wsize >= size)
-			memcpy(wsram, sram, size);
-	}
+	return MTY_ReadFile(MTY_JoinPath(main_save_dir(), name), size);
 }
 
-static void main_save_sram(struct core *core, const char *content_name)
+static void main_save_sdata(struct core *core, const char *content_name)
 {
 	if (!content_name)
 		return;
 
 	size_t size = 0;
-	void *sram = core_get_sram(core, &size);
-	if (sram) {
+	void *sdata = core_get_save_data(core, &size);
+	if (sdata) {
 		const char *name = MTY_SprintfDL("%s.srm", content_name);
 		const char *dir = main_save_dir();
 
 		MTY_Mkdir(dir);
-		MTY_WriteFile(MTY_JoinPath(dir, name), sram, size);
+		MTY_WriteFile(MTY_JoinPath(dir, name), sdata, size);
+		MTY_Free(sdata);
 	}
 }
 
 static void main_unload(struct main *ctx)
 {
-	main_save_sram(ctx->core, ctx->content_name);
+	main_save_sdata(ctx->core, ctx->content_name);
 	core_unload(&ctx->core);
 	loader_unload();
 
@@ -634,6 +627,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
 	const char *core_path = MTY_JoinPath(MTY_JoinPath(main_asset_dir(), "cores"), cname);
+	const char *content_name = MTY_GetFileName(name, false);
 
 	bool file_ok = MTY_FileExists(core_path) &&
 		main_check_core_hash(ctx->core_hash, core, core_path);
@@ -653,12 +647,16 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		core_set_audio_func(ctx->core, main_audio, ctx);
 		core_set_video_func(ctx->core, main_video, ctx);
 
-		if (!core_load_game(ctx->core, system, name))
+		size_t sdata_size = 0;
+		void *sdata = main_read_sdata(ctx->core, content_name, &sdata_size);
+		bool success = core_load_game(ctx->core, system, name, sdata, sdata_size);
+		MTY_Free(sdata);
+
+		if (!success)
 			return;
 
 		ctx->game_path = MTY_Strdup(name);
-		ctx->content_name = MTY_Strdup(MTY_GetFileName(name, false));
-		main_read_sram(ctx->core, ctx->content_name);
+		ctx->content_name = MTY_Strdup(content_name);
 
 		struct app_event evt = {.type = APP_EVENT_TITLE};
 		snprintf(evt.title, APP_TITLE_MAX, "%s - %s", APP_NAME, ctx->content_name);

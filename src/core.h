@@ -100,7 +100,8 @@ EXPORT void
 FP(core_unload)(struct core **core);
 
 EXPORT bool
-FP(core_load_game)(struct core *ctx, enum core_system system, const char *path);
+FP(core_load_game)(struct core *ctx, enum core_system system, const char *path,
+	const void *save_data, size_t save_data_size);
 
 EXPORT void
 FP(core_unload_game)(struct core *ctx);
@@ -133,7 +134,7 @@ EXPORT bool
 FP(core_set_disk)(struct core *ctx, int8_t disk, const char *path);
 
 EXPORT void *
-FP(core_get_sram)(struct core *ctx, size_t *size);
+FP(core_get_save_data)(struct core *ctx, size_t *size);
 
 EXPORT bool
 FP(core_game_is_loaded)(struct core *ctx);
