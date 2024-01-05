@@ -11,7 +11,7 @@
 #define CORE_VARIABLES_MAX 128
 #define CORE_AUDIO_BATCH   128
 
-struct core {
+struct Core {
 	MTY_SO *so;
 	bool game_loaded;
 	char *game_data;
@@ -58,13 +58,13 @@ static unsigned RETRO_CONTROLLER_DEVICE = RETRO_DEVICE_JOYPAD;
 static unsigned RETRO_REGION;
 
 static uint32_t CORE_NUM_VARIABLES;
-static struct core_setting CORE_VARIABLES[CORE_VARIABLES_MAX];
+static CoreSetting CORE_VARIABLES[CORE_VARIABLES_MAX];
 static MTY_Hash *CORE_OPTS;
 static bool CORE_OPT_SET;
 
-static CORE_LOG_FUNC CORE_LOG;
-static CORE_AUDIO_FUNC CORE_AUDIO;
-static CORE_VIDEO_FUNC CORE_VIDEO;
+static CoreLogFunc CORE_LOG;
+static CoreAudioFunc CORE_AUDIO;
+static CoreVideoFunc CORE_VIDEO;
 static void *CORE_LOG_OPAQUE;
 static void *CORE_AUDIO_OPAQUE;
 static void *CORE_VIDEO_OPAQUE;
@@ -81,7 +81,7 @@ static int16_t CORE_FRAMES[CORE_SAMPLES_MAX];
 
 // Maps
 
-static const enum core_button CORE_BUTTON_MAP[16] = {
+static const CoreButton CORE_BUTTON_MAP[16] = {
 	[RETRO_DEVICE_ID_JOYPAD_B]      = CORE_BUTTON_B,
 	[RETRO_DEVICE_ID_JOYPAD_Y]      = CORE_BUTTON_Y,
 	[RETRO_DEVICE_ID_JOYPAD_SELECT] = CORE_BUTTON_SELECT,
@@ -100,7 +100,7 @@ static const enum core_button CORE_BUTTON_MAP[16] = {
 	[RETRO_DEVICE_ID_JOYPAD_R3]     = CORE_BUTTON_R3,
 };
 
-static const enum core_axis CORE_AXIS_MAP[3][2] = {
+static const CoreAxis CORE_AXIS_MAP[3][2] = {
 	[RETRO_DEVICE_INDEX_ANALOG_LEFT] = {
 		[RETRO_DEVICE_ID_ANALOG_X] = CORE_AXIS_LX,
 		[RETRO_DEVICE_ID_ANALOG_Y] = CORE_AXIS_LY,
@@ -154,7 +154,7 @@ static retro_proc_address_t rcore_retro_hw_get_proc_address(const char *sym)
 	return NULL;
 }
 
-static void rcore_parse_setting(struct core_setting *var, const char *key, const char *val)
+static void rcore_parse_setting(CoreSetting *var, const char *key, const char *val)
 {
 	snprintf(var->key, CORE_KEY_NAME_MAX, "%s", key);
 
@@ -442,7 +442,7 @@ static bool rcore_retro_environment(unsigned cmd, void *data)
 	return false;
 }
 
-static enum core_color_format rcore_color_format(void)
+static CoreColorFormat rcore_color_format(void)
 {
 	switch (RETRO_PIXEL_FORMAT) {
 		case RETRO_PIXEL_FORMAT_XRGB8888: return CORE_COLOR_FORMAT_BGRA;
@@ -524,7 +524,7 @@ static int16_t rcore_retro_input_state(unsigned port, unsigned device,
 
 // Core API
 
-static bool rcore_load_symbols(struct core *ctx)
+static bool rcore_load_symbols(Core *ctx)
 {
 	#define CORE_LOAD_SYM(sym) \
 		ctx->sym = MTY_SOGetSymbol(ctx->so, #sym); \
@@ -556,9 +556,9 @@ static bool rcore_load_symbols(struct core *ctx)
 	return true;
 }
 
-struct core *rcore_load(const char *name, const char *system_dir, const char *save_dir)
+Core *rcore_load(const char *name, const char *system_dir, const char *save_dir)
 {
-	struct core *ctx = MTY_Alloc(1, sizeof(struct core));
+	Core *ctx = MTY_Alloc(1, sizeof(Core));
 
 	bool r = true;
 
@@ -600,12 +600,12 @@ struct core *rcore_load(const char *name, const char *system_dir, const char *sa
 	return ctx;
 }
 
-void rcore_unload(struct core **core)
+void rcore_unload(Core **core)
 {
 	if (!core || !*core)
 		return;
 
-	struct core *ctx = *core;
+	Core *ctx = *core;
 
 	rcore_unload_game(ctx);
 
@@ -624,7 +624,7 @@ void rcore_unload(struct core **core)
 	RETRO_REGION = 0;
 
 	CORE_NUM_VARIABLES = 0;
-	memset(CORE_VARIABLES, 0, sizeof(struct core_setting) * CORE_VARIABLES_MAX);
+	memset(CORE_VARIABLES, 0, sizeof(CoreSetting) * CORE_VARIABLES_MAX);
 
 	MTY_HashDestroy(&CORE_OPTS, MTY_Free);
 	CORE_OPT_SET = false;
@@ -644,7 +644,7 @@ void rcore_unload(struct core **core)
 	*core = NULL;
 }
 
-bool rcore_load_game(struct core *ctx, enum core_system system, const char *path,
+bool rcore_load_game(Core *ctx, CoreSystem system, const char *path,
 	const void *save_data, size_t save_data_size)
 {
 	if (!ctx)
@@ -695,7 +695,7 @@ bool rcore_load_game(struct core *ctx, enum core_system system, const char *path
 	return ctx->game_loaded;
 }
 
-void rcore_unload_game(struct core *ctx)
+void rcore_unload_game(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return;
@@ -704,7 +704,7 @@ void rcore_unload_game(struct core *ctx)
 	ctx->game_loaded = false;
 }
 
-void rcore_reset_game(struct core *ctx)
+void rcore_reset(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return;
@@ -712,7 +712,7 @@ void rcore_reset_game(struct core *ctx)
 	ctx->retro_reset();
 }
 
-void rcore_run_frame(struct core *ctx)
+void rcore_run(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return;
@@ -723,7 +723,7 @@ void rcore_run_frame(struct core *ctx)
 	memcpy(CORE_BUTTONS[0], CORE_BUTTONS[1], sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 }
 
-double rcore_get_frame_rate(struct core *ctx)
+double rcore_get_frame_rate(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 60.0;
@@ -731,7 +731,7 @@ double rcore_get_frame_rate(struct core *ctx)
 	return RETRO_SYSTEM_TIMING.fps;
 }
 
-float rcore_get_aspect_ratio(struct core *ctx)
+float rcore_get_aspect_ratio(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 0.0f;
@@ -744,7 +744,7 @@ float rcore_get_aspect_ratio(struct core *ctx)
 	return ar;
 }
 
-void rcore_set_button(struct core *ctx, uint8_t player, enum core_button button, bool pressed)
+void rcore_set_button(Core *ctx, uint8_t player, CoreButton button, bool pressed)
 {
 	if (!ctx)
 		return;
@@ -753,7 +753,7 @@ void rcore_set_button(struct core *ctx, uint8_t player, enum core_button button,
 	CORE_BUTTONS[1][player][button] = pressed;
 }
 
-void rcore_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16_t value)
+void rcore_set_axis(Core *ctx, uint8_t player, CoreAxis axis, int16_t value)
 {
 	if (!ctx)
 		return;
@@ -761,7 +761,7 @@ void rcore_set_axis(struct core *ctx, uint8_t player, enum core_axis axis, int16
 	CORE_AXES[player][axis] = value;
 }
 
-void *rcore_get_state(struct core *ctx, size_t *size)
+void *rcore_get_state(Core *ctx, size_t *size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return NULL;
@@ -779,7 +779,7 @@ void *rcore_get_state(struct core *ctx, size_t *size)
 	return state;
 }
 
-bool rcore_set_state(struct core *ctx, const void *state, size_t size)
+bool rcore_set_state(Core *ctx, const void *state, size_t size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return false;
@@ -787,7 +787,7 @@ bool rcore_set_state(struct core *ctx, const void *state, size_t size)
 	return ctx->retro_unserialize(state, size);
 }
 
-uint8_t rcore_get_num_disks(struct core *ctx)
+uint8_t rcore_get_num_disks(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 0;
@@ -798,7 +798,7 @@ uint8_t rcore_get_num_disks(struct core *ctx)
 	return 0;
 }
 
-int8_t rcore_get_disk(struct core *ctx)
+int8_t rcore_get_disk(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
 		return 0;
@@ -813,7 +813,7 @@ int8_t rcore_get_disk(struct core *ctx)
 	return -1;
 }
 
-bool rcore_set_disk(struct core *ctx, int8_t disk, const char *path)
+bool rcore_set_disk(Core *ctx, int8_t disk, const char *path)
 {
 	if (!ctx || !ctx->game_loaded)
 		return false;
@@ -836,7 +836,7 @@ bool rcore_set_disk(struct core *ctx, int8_t disk, const char *path)
 	return false;
 }
 
-void *rcore_get_save_data(struct core *ctx, size_t *size)
+void *rcore_get_save_data(Core *ctx, size_t *size)
 {
 	if (!ctx || !ctx->game_loaded)
 		return NULL;
@@ -855,18 +855,18 @@ void *rcore_get_save_data(struct core *ctx, size_t *size)
 	return copy;
 }
 
-bool rcore_game_is_loaded(struct core *ctx)
+bool rcore_game_is_loaded(Core *ctx)
 {
 	return ctx ? ctx->game_loaded : false;
 }
 
-void rcore_set_log_func(struct core *ctx, CORE_LOG_FUNC func, void *opaque)
+void rcore_set_log_func(Core *ctx, CoreLogFunc func, void *opaque)
 {
 	CORE_LOG = func;
 	CORE_LOG_OPAQUE = opaque;
 }
 
-void rcore_set_audio_func(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque)
+void rcore_set_audio_func(Core *ctx, CoreAudioFunc func, void *opaque)
 {
 	if (!ctx)
 		return;
@@ -875,7 +875,7 @@ void rcore_set_audio_func(struct core *ctx, CORE_AUDIO_FUNC func, void *opaque)
 	CORE_AUDIO_OPAQUE = opaque;
 }
 
-void rcore_set_video_func(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque)
+void rcore_set_video_func(Core *ctx, CoreVideoFunc func, void *opaque)
 {
 	if (!ctx)
 		return;
@@ -884,14 +884,14 @@ void rcore_set_video_func(struct core *ctx, CORE_VIDEO_FUNC func, void *opaque)
 	CORE_VIDEO_OPAQUE = opaque;
 }
 
-const struct core_setting *rcore_get_settings(struct core *ctx, uint32_t *len)
+const CoreSetting *rcore_get_all_settings(Core *ctx, uint32_t *len)
 {
 	*len = CORE_NUM_VARIABLES;
 
 	return CORE_VARIABLES;
 }
 
-void rcore_set_setting(struct core *ctx, const char *key, const char *val)
+void rcore_set_setting(Core *ctx, const char *key, const char *val)
 {
 	if (!ctx)
 		return;
@@ -901,7 +901,7 @@ void rcore_set_setting(struct core *ctx, const char *key, const char *val)
 	CORE_OPT_SET = true;
 }
 
-const char *rcore_get_setting(struct core *ctx, const char *key)
+const char *rcore_get_setting(Core *ctx, const char *key)
 {
 	if (!ctx)
 		return NULL;
@@ -909,7 +909,7 @@ const char *rcore_get_setting(struct core *ctx, const char *key)
 	return MTY_HashGet(CORE_OPTS, key);
 }
 
-void rcore_clear_settings(struct core *ctx)
+void rcore_reset_settings(Core *ctx)
 {
 	MTY_HashDestroy(&CORE_OPTS, MTY_Free);
 	CORE_OPTS = MTY_HashCreate(0);

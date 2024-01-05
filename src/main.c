@@ -81,7 +81,7 @@ struct app_event {
 };
 
 struct main {
-	struct core *core;
+	Core *core;
 
 	char *game_path;
 	char *content_name;
@@ -117,7 +117,7 @@ struct main {
 
 // Maps
 
-static const enum core_button NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
+static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 	[MTY_KEY_SEMICOLON] = CORE_BUTTON_A,
 	[MTY_KEY_L]         = CORE_BUTTON_B,
 	[MTY_KEY_O]         = CORE_BUTTON_X,
@@ -441,7 +441,7 @@ static void main_poll_core_fetch(struct main *ctx)
 
 // Core
 
-static void main_video(const void *buf, enum core_color_format format,
+static void main_video(const void *buf, CoreColorFormat format,
 	uint32_t width, uint32_t height, size_t pitch, void *opaque)
 {
 	struct main *ctx = opaque;
@@ -497,7 +497,7 @@ static void main_video(const void *buf, enum core_color_format format,
 
 	// Square pixels
 	ctx->desc.aspectRatio = !ctx->cfg.square_pixels ?
-		core_get_aspect_ratio(ctx->core) : ctx->desc.imageHeight > 0 ?
+		CoreGetAspectRatio(ctx->core) : ctx->desc.imageHeight > 0 ?
 		(float) ctx->desc.imageWidth / ctx->desc.imageHeight : 1;
 
 	MTY_WindowDrawQuad(ctx->app, ctx->window, buf, &ctx->desc);
@@ -524,7 +524,7 @@ static void main_log(const char *msg, void *opaque)
 	printf("%s", msg);
 }
 
-static enum core_system main_get_core_system(const char *key)
+static CoreSystem main_get_core_system(const char *key)
 {
 	if (!strcmp(key, "nes")) return CORE_SYSTEM_NES;
 	if (!strcmp(key, "ms")) return CORE_SYSTEM_SMS;
@@ -535,7 +535,7 @@ static enum core_system main_get_core_system(const char *key)
 	return CORE_SYSTEM_UNKNOWN;
 }
 
-static enum core_system main_get_system_by_ext(struct main *ctx, const char *name,
+static CoreSystem main_get_system_by_ext(struct main *ctx, const char *name,
 	const char **core)
 {
 	*core = NULL;
@@ -569,24 +569,24 @@ static void main_set_core_options(struct main *ctx)
 		char val[CORE_OPT_NAME_MAX];
 
 		if (MTY_JSONObjGetString(ctx->core_options, key, val, CORE_OPT_NAME_MAX))
-			core_set_setting(ctx->core, key, val);
+			CoreSetSetting(ctx->core, key, val);
 	}
 }
 
-static void *main_read_sdata(struct core *core, const char *content_name, size_t *size)
+static void *main_read_sdata(Core *core, const char *content_name, size_t *size)
 {
 	const char *name = MTY_SprintfDL("%s.srm", content_name);
 
 	return MTY_ReadFile(MTY_JoinPath(main_save_dir(), name), size);
 }
 
-static void main_save_sdata(struct core *core, const char *content_name)
+static void main_save_sdata(Core *core, const char *content_name)
 {
 	if (!content_name)
 		return;
 
 	size_t size = 0;
-	void *sdata = core_get_save_data(core, &size);
+	void *sdata = CoreGetSaveData(core, &size);
 	if (sdata) {
 		const char *name = MTY_SprintfDL("%s.srm", content_name);
 		const char *dir = main_save_dir();
@@ -600,7 +600,7 @@ static void main_save_sdata(struct core *core, const char *content_name)
 static void main_unload(struct main *ctx)
 {
 	main_save_sdata(ctx->core, ctx->content_name);
-	core_unload(&ctx->core);
+	CoreUnload(&ctx->core);
 	loader_unload();
 
 	MTY_Free(ctx->game_path);
@@ -619,7 +619,7 @@ static bool main_use_core_interface(const char *core)
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 {
 	const char *core = NULL;
-	enum core_system system = main_get_system_by_ext(ctx, name, &core);
+	CoreSystem system = main_get_system_by_ext(ctx, name, &core);
 	if (!core)
 		return;
 
@@ -637,19 +637,19 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		if (!loader_load(core_path, !main_use_core_interface(core)))
 			return;
 
-		ctx->core = core_load(core_path, main_system_dir(), main_save_dir());
+		ctx->core = CoreLoad(core_path, main_system_dir(), main_save_dir());
 		if (!ctx->core)
 			return;
 
 		main_set_core_options(ctx);
 
-		core_set_log_func(ctx->core, main_log, &ctx);
-		core_set_audio_func(ctx->core, main_audio, ctx);
-		core_set_video_func(ctx->core, main_video, ctx);
+		CoreSetLogFunc(ctx->core, main_log, &ctx);
+		CoreSetAudioFunc(ctx->core, main_audio, ctx);
+		CoreSetVideoFunc(ctx->core, main_video, ctx);
 
 		size_t sdata_size = 0;
 		void *sdata = main_read_sdata(ctx->core, content_name, &sdata_size);
-		bool success = core_load_game(ctx->core, system, name, sdata, sdata_size);
+		bool success = CoreLoadGame(ctx->core, system, name, sdata, sdata_size);
 		MTY_Free(sdata);
 
 		if (!success)
@@ -803,13 +803,13 @@ static void main_post_ui_state(struct main *ctx)
 	MTY_JSONObjSetItem(msg, "core_opts", core_opts);
 
 	uint32_t vlen = 0;
-	const struct core_setting *vars = core_get_settings(ctx->core, &vlen);
+	const CoreSetting *vars = CoreGetAllSettings(ctx->core, &vlen);
 
 	for (uint32_t x = 0; x < vlen; x++) {
 		const char *desc = vars[x].desc;
 		const char *key = vars[x].key;
 
-		const char *cur = core_get_setting(ctx->core, key);
+		const char *cur = CoreGetSetting(ctx->core, key);
 		if (!cur)
 			cur = vars[x].opts[0];
 
@@ -828,16 +828,16 @@ static void main_post_ui_state(struct main *ctx)
 	}
 
 	// Other native state
-	bool has_disks = core_get_num_disks(ctx->core) > 0;
+	bool has_disks = CoreGetNumDisks(ctx->core) > 0;
 	MTY_JSON *nstate = MTY_JSONObjCreate();
 	MTY_JSONObjSetItem(msg, "nstate", nstate);
 	MTY_JSONObjSetBool(nstate, "pause", ctx->paused);
-	MTY_JSONObjSetBool(nstate, "running", core_game_is_loaded(ctx->core));
+	MTY_JSONObjSetBool(nstate, "running", CoreGameIsLoaded(ctx->core));
 	MTY_JSONObjSetNumber(nstate, "save-state", ctx->last_save_index);
 	MTY_JSONObjSetNumber(nstate, "load-state", ctx->last_load_index);
 	MTY_JSONObjSetBool(nstate, "has_disks", has_disks);
-	MTY_JSONObjSetNumber(nstate, "num_disks", core_get_num_disks(ctx->core));
-	MTY_JSONObjSetNumber(nstate, "disk", has_disks ? core_get_disk(ctx->core) : -1);
+	MTY_JSONObjSetNumber(nstate, "num_disks", CoreGetNumDisks(ctx->core));
+	MTY_JSONObjSetNumber(nstate, "disk", has_disks ? CoreGetDisk(ctx->core) : -1);
 	MTY_JSONObjSetBool(nstate, "allow_window_adjustments", !main_ui_is_steam());
 
 	char *jmsg = MTY_JSONSerialize(msg);
@@ -1089,7 +1089,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			}
 			case APP_EVENT_RESET: {
-				core_reset_game(ctx->core);
+				CoreReset(ctx->core);
 				ctx->paused = false;
 
 				struct app_event hevt = {.type = APP_EVENT_HIDE_MENU};
@@ -1107,7 +1107,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			case APP_EVENT_CLEAR_OPTS: {
 				MTY_JSONDestroy(&ctx->core_options);
 				ctx->core_options = MTY_JSONObjCreate();
-				core_clear_settings(ctx->core);
+				CoreResetSettings(ctx->core);
 
 				struct app_event sevt = {.type = APP_EVENT_STATE};
 				main_push_app_event(&sevt, ctx);
@@ -1115,14 +1115,14 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			}
 			case APP_EVENT_CORE_OPT:
 				MTY_JSONObjSetString(ctx->core_options, evt->opt.key, evt->opt.val);
-				core_set_setting(ctx->core, evt->opt.key, evt->opt.val);
+				CoreSetSetting(ctx->core, evt->opt.key, evt->opt.val);
 				break;
 			case APP_EVENT_SAVE_STATE: {
-				if (!ctx->content_name || !core_game_is_loaded(ctx->core))
+				if (!ctx->content_name || !CoreGameIsLoaded(ctx->core))
 					break;
 
 				size_t size = 0;
-				void *state = core_get_state(ctx->core, &size);
+				void *state = CoreGetState(ctx->core, &size);
 
 				if (state) {
 					ctx->last_save_index = evt->state_index;
@@ -1138,7 +1138,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			}
 			case APP_EVENT_LOAD_STATE: {
-				if (!ctx->content_name || !core_game_is_loaded(ctx->core))
+				if (!ctx->content_name || !CoreGameIsLoaded(ctx->core))
 					break;
 
 				const char *path = MTY_JoinPath(main_asset_dir(), "state");
@@ -1150,7 +1150,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				void *state = MTY_ReadFile(MTY_JoinPath(path, name), &size);
 
 				if (state) {
-					if (core_set_state(ctx->core, state, size))
+					if (CoreSetState(ctx->core, state, size))
 						ctx->last_load_index = evt->state_index;
 
 					MTY_Free(state);
@@ -1158,7 +1158,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			}
 			case APP_EVENT_SET_DISK:
-				core_set_disk(ctx->core, evt->disk, NULL);
+				CoreSetDisk(ctx->core, evt->disk, NULL);
 				break;
 			case APP_EVENT_HIDE_MENU:
 				main_ui_show(ctx->app, ctx->window, false);
@@ -1293,14 +1293,14 @@ static void *main_render_thread(void *opaque)
 		main_poll_app_events(ctx, ctx->rt_q);
 		main_poll_core_fetch(ctx);
 
-		bool loaded = core_game_is_loaded(ctx->core);
+		bool loaded = CoreGameIsLoaded(ctx->core);
 
 		bool active = !ctx->paused &&
 			((!ctx->cfg.bg_pause || MTY_WindowIsActive(ctx->app, ctx->window)) &&
 			(!ctx->cfg.menu_pause || !ctx->ui_visible));
 
 		if (active && loaded) {
-			core_run_frame(ctx->core);
+			CoreRun(ctx->core);
 
 		} else {
 			if (loaded) {
@@ -1316,7 +1316,7 @@ static void *main_render_thread(void *opaque)
 		double diff = MTY_TimeDiff(stamp, MTY_GetTime());
 
 		if (ctx->cfg.vsync == 0)
-			MTY_PreciseSleep(1000.0 / core_get_frame_rate(ctx->core) - diff, 4.0);
+			MTY_PreciseSleep(1000.0 / CoreGetFrameRate(ctx->core) - diff, 4.0);
 	}
 
 	MTY_WindowSetGFX(ctx->app, ctx->window, MTY_GFX_NONE, false);
@@ -1353,9 +1353,9 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			if (evt->type == MTY_EVENT_KEY) {
 				MTY_AppShowCursor(ctx->app, false);
 
-				enum core_button button = NES_KEYBOARD_MAP[evt->key.key];
+				CoreButton button = NES_KEYBOARD_MAP[evt->key.key];
 				if (button != 0)
-					core_set_button(ctx->core, 0, button, evt->key.pressed);
+					CoreSetButton(ctx->core, 0, button, evt->key.pressed);
 			}
 
 			toggle_menu = evt->key.pressed && evt->key.key == MTY_KEY_ESCAPE && !ctx->ui_visible;
@@ -1374,27 +1374,27 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				#define REV_AXIS(axis) \
 					((axis) == INT16_MAX ? INT16_MIN : (axis) == INT16_MIN ? INT16_MAX : -(axis))
 
-				core_set_button(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_B]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_A]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_Y]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_X]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_SELECT, c->buttons[MTY_CBUTTON_BACK]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_R, c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_U, c->buttons[MTY_CBUTTON_DPAD_UP]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_L3, c->buttons[MTY_CBUTTON_LEFT_THUMB]);
-				core_set_button(ctx->core, 0, CORE_BUTTON_R3, c->buttons[MTY_CBUTTON_RIGHT_THUMB]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_B]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_A]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_Y]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_X]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_SELECT, c->buttons[MTY_CBUTTON_BACK]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_R, c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_U, c->buttons[MTY_CBUTTON_DPAD_UP]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_L3, c->buttons[MTY_CBUTTON_LEFT_THUMB]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_R3, c->buttons[MTY_CBUTTON_RIGHT_THUMB]);
 
-				core_set_axis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
-				core_set_axis(ctx->core, 0, CORE_AXIS_LY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_LY].value));
-				core_set_axis(ctx->core, 0, CORE_AXIS_RX, c->axes[MTY_CAXIS_THUMB_RX].value);
-				core_set_axis(ctx->core, 0, CORE_AXIS_RY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_RY].value));
+				CoreSetAxis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
+				CoreSetAxis(ctx->core, 0, CORE_AXIS_LY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_LY].value));
+				CoreSetAxis(ctx->core, 0, CORE_AXIS_RX, c->axes[MTY_CAXIS_THUMB_RX].value);
+				CoreSetAxis(ctx->core, 0, CORE_AXIS_RY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_RY].value));
 
 			} else {
 				main_post_ui_controller(ctx->app, ctx->window, c);
