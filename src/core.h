@@ -68,18 +68,18 @@ typedef enum {
 
 typedef enum {
 	CORE_COLOR_FORMAT_UNKNOWN  = 0,
-	CORE_COLOR_FORMAT_BGRA     = 1,
-	CORE_COLOR_FORMAT_B5G6R5   = 2,
-	CORE_COLOR_FORMAT_B5G5R5A1 = 3,
+	CORE_COLOR_FORMAT_BGRA     = 1, // 32-bit, 8-bits per channel
+	CORE_COLOR_FORMAT_B5G6R5   = 2, // 16-bit
+	CORE_COLOR_FORMAT_B5G5R5A1 = 3, // 16-bit
 } CoreColorFormat;
 
 typedef enum {
 	CORE_SYSTEM_UNKNOWN = 0,
-	CORE_SYSTEM_NES     = 1,
-	CORE_SYSTEM_SMS     = 2,
-	CORE_SYSTEM_TG16    = 3,
+	CORE_SYSTEM_NES     = 1, // Nintendo Entertainment System
+	CORE_SYSTEM_SMS     = 2, // Sega Master System
+	CORE_SYSTEM_TG16    = 3, // TurboGrafx-16 (PC Engine)
 	CORE_SYSTEM_GAMEBOY = 4,
-	CORE_SYSTEM_SNES    = 5,
+	CORE_SYSTEM_SNES    = 5, // Super Nintendo Entertainment System
 } CoreSystem;
 
 typedef struct {
@@ -93,16 +93,17 @@ typedef struct {
 // Callback with log messages
 typedef void (*CoreLogFunc)(const char *msg, void *opaque);
 
-// Callback with PCM audio samples
+// Callback with 16-bit signed PCM audio samples
 typedef void (*CoreAudioFunc)(const int16_t *buf, size_t frames, uint32_t sampleRate,
 	void *opaque);
 
-// Callback with video frame
+// Callback with a video frame
 typedef void (*CoreVideoFunc)(const void *buf, CoreColorFormat format, uint32_t width,
 	uint32_t height, size_t pitch, void *opaque);
 
 
 // Core initialization
+// 'systemDir' is where to look for BIOS files, 'saveDir' is ignored
 
 EXPORT Core *
 FP(CoreLoad)(const char *name, const char *systemDir, const char *saveDir);
@@ -124,6 +125,7 @@ FP(CoreSetVideoFunc)(Core *ctx, CoreVideoFunc func, void *opaque);
 
 
 // Game loading
+// 'saveData' is written upfront rather than written to after the game is loaded
 
 EXPORT bool
 FP(CoreLoadGame)(Core *ctx, CoreSystem system, const char *path, const void *saveData,
@@ -182,6 +184,7 @@ FP(CoreSetState)(Core *ctx, const void *state, size_t size);
 
 
 // Disk interface
+// Set a disk value of '-1' to eject
 
 EXPORT uint8_t
 FP(CoreGetNumDisks)(Core *ctx);
