@@ -376,12 +376,14 @@ static void main_fetch_core(struct main *ctx, const char *core, const char *file
 	MTY_HttpAsyncRequest(&ctx->core_fetch.req, url, "GET", NULL, NULL, 0, NULL, 10000, false);
 }
 
+#if !MTN_DEBUG_CORE
 static const char *main_get_core_hash(const MTY_JSON *j, const char *core)
 {
 	const char *platform = main_get_platform();
 
 	return MTY_JSONObjGetStringPtr(MTY_JSONObjGetItem(MTY_JSONObjGetItem(j, platform), MTN_CORE_ARCH), core);
 }
+#endif
 
 static void main_set_core_hash(MTY_JSON *j, const char *core, const void *data, size_t size)
 {
