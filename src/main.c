@@ -499,8 +499,8 @@ static void main_video(const void *buf, CoreColorFormat format,
 
 	// Square pixels
 	ctx->desc.aspectRatio = !ctx->cfg.square_pixels ?
-		CoreGetAspectRatio(ctx->core) : ctx->desc.imageHeight > 0 ?
-		(float) ctx->desc.imageWidth / ctx->desc.imageHeight : 1;
+		CoreGetAspectRatio(ctx->core) : ctx->desc.cropHeight > 0 ?
+		(float) ctx->desc.cropWidth / ctx->desc.cropHeight : 1;
 
 	MTY_WindowDrawQuad(ctx->app, ctx->window, buf, &ctx->desc);
 }
@@ -614,6 +614,7 @@ static void main_unload(struct main *ctx)
 static bool main_use_core_interface(const char *core)
 {
 	if (!strcmp(core, "mesen2")) return true;
+	if (!strcmp(core, "genesis-plus-gx")) return true;
 
 	return false;
 }

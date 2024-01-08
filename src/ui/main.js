@@ -128,7 +128,7 @@ const SYSTEMS = {
 	},
 	genesis: {
 		name: 'Genesis',
-		cores: ['genesis_plus_gx']
+		cores: ['genesis_plus_gx', 'genesis-plus-gx']
 	},
 	gameboy: {
 		name: 'Game Boy',
