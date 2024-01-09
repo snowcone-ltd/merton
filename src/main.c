@@ -811,15 +811,18 @@ static void main_post_ui_state(struct main *ctx)
 	for (uint32_t x = 0; x < vlen; x++) {
 		const char *desc = vars[x].desc;
 		const char *key = vars[x].key;
+		CoreSettingType type = vars[x].type;
 
 		const char *cur = CoreGetSetting(ctx->core, key);
 		if (!cur)
-			cur = vars[x].opts[0];
+			continue;
 
 		MTY_JSON *opt_item = MTY_JSONObjCreate();
 		MTY_JSONObjSetString(cfg, key, cur);
 		MTY_JSONObjSetItem(core_opts, key, opt_item);
 		MTY_JSONObjSetString(opt_item, "name", desc);
+		MTY_JSONObjSetString(opt_item, "type",
+			type == CORE_SETTING_BOOL ? "checkbox" : "dropdown");
 
 		MTY_JSON *opt_list = MTY_JSONArrayCreate(vars[x].nopts);
 		MTY_JSONObjSetItem(opt_item, "list", opt_list);

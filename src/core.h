@@ -29,7 +29,7 @@ extern "C" {
 
 #define CORE_PLAYERS_MAX   8
 #define CORE_DESC_MAX      128
-#define CORE_OPTS_MAX      128
+#define CORE_OPTS_MAX      32
 #define CORE_KEY_NAME_MAX  64
 #define CORE_OPT_NAME_MAX  64
 
@@ -82,11 +82,26 @@ typedef enum {
 	CORE_SYSTEM_SNES    = 5, // Super Nintendo Entertainment System
 } CoreSystem;
 
+typedef enum {
+	CORE_SETTING_ENUM  = 0,
+	CORE_SETTING_BOOL  = 1,
+} CoreSettingType;
+
+typedef enum {
+	CORE_SETTING_GROUP_GENERAL  = 0,
+	CORE_SETTING_GROUP_ADVANCED = 1,
+	CORE_SETTING_GROUP_VIDEO    = 2,
+	CORE_SETTING_GROUP_AUDIO    = 3,
+	CORE_SETTING_GROUP_INPUT    = 4,
+} CoreSettingGroup;
+
 typedef struct {
-	uint32_t nopts;
-	char key[CORE_KEY_NAME_MAX];
+	CoreSettingType type;
+	CoreSettingGroup group;
 	char desc[CORE_DESC_MAX];
+	char key[CORE_KEY_NAME_MAX];
 	char opts[CORE_OPTS_MAX][CORE_OPT_NAME_MAX];
+	uint32_t nopts;
 } CoreSetting;
 
 

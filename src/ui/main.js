@@ -178,6 +178,9 @@ function handleEvent(evt, state, setState) {
 		case 'action':
 		case 'nstate':
 		case 'core_opts':
+			if (evt.type == 'core_opts')
+				evt.value = evt.value.toString(); // Boolean values need to be strings
+
 			if (window.MTY_NativeSendText)
 				window.MTY_NativeSendText(JSON.stringify(evt));
 			break;
@@ -382,6 +385,7 @@ function Checkbox(props) {
 
 	let onChange = (evt) => {
 		handleEvent({name: mitem.name, type: mitem.type, value: evt.target.checked});
+		this.props.setValue(mitem.type == 'core_opts' ? 'cfg' : mitem.type, mitem.name, evt.target.checked);
 		props.setValue(mitem.type, mitem.name, evt.target.checked);
 	};
 
@@ -478,6 +482,13 @@ function MenuLeft(props) {
 	return e('div', {style: style}, items);
 }
 
+function stringBoolConversion(val) {
+	if (typeof val == 'string')
+		return val.toLowerCase() === 'true';
+
+	return val;
+}
+
 function MenuRight(props) {
 	const style = {
 		width: '15rem',
@@ -515,7 +526,9 @@ function MenuRight(props) {
 				}));
 				break;
 			case 'checkbox': {
-				const val = props.appState[mitem.type][mitem.name];
+				let val = props.appState[mitem.type == 'core_opts' ? 'cfg' : mitem.type][mitem.name];
+				val = stringBoolConversion(val);
+
 				items.push(e(Checkbox, {mitem: mitem, setValue: props.setValue, checked: val, disabled: disabled}));
 				break;
 			}
@@ -721,11 +734,15 @@ function coreOptsToMenu(core_opts) {
 		const key = keys[x];
 		const val = core_opts[key];
 
-		let mitem = {name: key, type: 'core_opts', etype: 'dropdown', label: val.name, opts: []};
+		let mitem = {name: key, type: 'core_opts', etype: val.type, label: val.name};
 
-		for (let y = 0; y < val.list.length; y++) {
-			const opt = val.list[y];
-			mitem.opts.push({label: opt, value: opt});
+		if (val.type == 'dropdown') {
+			mitem.opts = [];
+
+			for (let y = 0; y < val.list.length; y++) {
+				const opt = val.list[y];
+				mitem.opts.push({label: opt, value: opt});
+			}
 		}
 
 		mrow.items.push(mitem);
