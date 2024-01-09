@@ -103,6 +103,7 @@ struct main {
 	bool running;
 	bool paused;
 	bool audio_init;
+	bool resampler_init;
 	bool show_ui;
 
 	MTY_RenderDesc desc;
@@ -611,6 +612,8 @@ static void main_unload(struct main *ctx)
 	ctx->system = CORE_SYSTEM_UNKNOWN;
 	ctx->game_path = NULL;
 	ctx->content_name = NULL;
+
+	ctx->resampler_init = false;
 }
 
 static bool main_use_core_interface(const char *core)
@@ -1237,12 +1240,14 @@ static void *main_audio_thread(void *opaque)
 			#define TARGET_RATE(rate) (rate)
 
 			// Reset resampler on sample rate changes
-			if (sample_rate != pkt->sample_rate) {
+			if (sample_rate != pkt->sample_rate || !ctx->resampler_init) {
 				MTY_ResamplerReset(rsp);
 
 				sample_rate = pkt->sample_rate;
 				target_rate = lrint(TARGET_RATE(playback_rate));
 				correct_high = correct_low = false;
+
+				ctx->resampler_init = true;
 			}
 
 			// Submit the audio
