@@ -485,11 +485,11 @@ static void main_video(const void *buf, CoreColorFormat format,
 	}
 
 	// Integer scaling
-	if (ctx->cfg.int_scaling && ctx->desc.imageWidth > 0 && ctx->desc.imageHeight > 0) {
+	if (ctx->cfg.int_scaling && ctx->desc.cropWidth > 0 && ctx->desc.cropHeight > 0) {
 		MTY_Size size = MTY_WindowGetSize(ctx->app, ctx->window);
 
-		uint32_t w_multi = size.w / ctx->desc.imageWidth;
-		uint32_t h_multi = size.h / ctx->desc.imageHeight;
+		uint32_t w_multi = size.w / ctx->desc.cropWidth;
+		uint32_t h_multi = size.h / ctx->desc.cropHeight;
 
 		ctx->desc.scale = (float) (w_multi < h_multi ? w_multi : h_multi);
 
