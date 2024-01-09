@@ -85,6 +85,7 @@ struct main {
 
 	char *game_path;
 	char *content_name;
+	CoreSystem system;
 	MTY_App *app;
 	MTY_JSON *jcfg;
 	MTY_JSON *core_options;
@@ -607,6 +608,7 @@ static void main_unload(struct main *ctx)
 
 	MTY_Free(ctx->game_path);
 	MTY_Free(ctx->content_name);
+	ctx->system = CORE_SYSTEM_UNKNOWN;
 	ctx->game_path = NULL;
 	ctx->content_name = NULL;
 }
@@ -658,6 +660,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		if (!success)
 			return;
 
+		ctx->system = system;
 		ctx->game_path = MTY_Strdup(name);
 		ctx->content_name = MTY_Strdup(content_name);
 
@@ -809,9 +812,13 @@ static void main_post_ui_state(struct main *ctx)
 	const CoreSetting *vars = CoreGetAllSettings(ctx->core, &vlen);
 
 	for (uint32_t x = 0; x < vlen; x++) {
+		CoreSystem system = vars[x].system;
+		CoreSettingType type = vars[x].type;
 		const char *desc = vars[x].desc;
 		const char *key = vars[x].key;
-		CoreSettingType type = vars[x].type;
+
+		if (system != CORE_SYSTEM_UNKNOWN && system != ctx->system)
+			continue;
 
 		const char *cur = CoreGetSetting(ctx->core, key);
 		if (!cur)

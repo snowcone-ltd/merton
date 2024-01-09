@@ -96,6 +96,7 @@ typedef enum {
 } CoreSettingGroup;
 
 typedef struct {
+	CoreSystem system;
 	CoreSettingType type;
 	CoreSettingGroup group;
 	char desc[CORE_DESC_MAX];
