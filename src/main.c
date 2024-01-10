@@ -223,7 +223,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 		MTY_JSONObjSetString(*core_exts, "gameboy", "gb|gbc");
 		MTY_JSONObjSetString(*core_exts, "gba", "gba");
 		MTY_JSONObjSetString(*core_exts, "genesis", "gen|md|smd");
-		MTY_JSONObjSetString(*core_exts, "ms", "sms");
+		MTY_JSONObjSetString(*core_exts, "ms", "sms|gg");
 		MTY_JSONObjSetString(*core_exts, "n64", "n64|v64|z64");
 		MTY_JSONObjSetString(*core_exts, "nes", "nes|fds|qd|unf|unif");
 		MTY_JSONObjSetString(*core_exts, "ps", "cue");
