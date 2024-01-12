@@ -4,6 +4,49 @@ const e = React.createElement;
 
 const OPACITY = '0.97';
 
+const SYSTEMS = {
+	atari2600: {
+		name: 'Atari 2600',
+		cores: ['stella_libretro']
+	},
+	nes: {
+		name: 'NES',
+		cores: ['mesen2', 'merton-nes', 'mesen_libretro']
+	},
+	ms: {
+		name: 'Master System',
+		cores: ['mesen2', 'genesis_plus_gx_libretro']
+	},
+	tg16: {
+		name: 'TurboGrafx-16',
+		cores: ['mesen2', 'mednafen_pce_libretro']
+	},
+	genesis: {
+		name: 'Genesis',
+		cores: ['genesis-plus-gx', 'genesis_plus_gx_libretro']
+	},
+	gameboy: {
+		name: 'Game Boy',
+		cores: ['mesen2', 'sameboy_libretro']
+	},
+	snes: {
+		name: 'SNES',
+		cores: ['mesen2', 'snes9x_libretro', 'bsnes_libretro', 'mesen-s_libretro']
+	},
+	ps: {
+		name: 'PlayStation',
+		cores: ['swanstation_libretro']
+	},
+	n64: {
+		name: 'N64',
+		cores: ['mupen64plus_next_libretro']
+	},
+	gba: {
+		name: 'Game Boy Advance',
+		cores: ['mgba', 'mgba_libretro']
+	},
+};
+
 const MENU_ITEMS = [
 	{name: 'System', items: [
 		{name: 'load-rom', type: 'files', etype: 'label', label: 'Load ROM'},
@@ -106,51 +149,10 @@ const MENU_ITEMS = [
 			{label: '48 kHz', value: 48000},
 			{label: '96 kHz', value: 96000},
 		]},
+		{etype: 'separator'},
+		...systemsToMenu(),
 	]},
 ];
-
-const SYSTEMS = {
-	atari2600: {
-		name: 'Atari 2600',
-		cores: ['stella_libretro']
-	},
-	nes: {
-		name: 'NES',
-		cores: ['mesen2', 'merton-nes', 'mesen_libretro']
-	},
-	ms: {
-		name: 'Master System',
-		cores: ['mesen2', 'genesis_plus_gx_libretro']
-	},
-	tg16: {
-		name: 'TurboGrafx-16',
-		cores: ['mesen2', 'mednafen_pce_libretro']
-	},
-	genesis: {
-		name: 'Genesis',
-		cores: ['genesis-plus-gx', 'genesis_plus_gx_libretro']
-	},
-	gameboy: {
-		name: 'Game Boy',
-		cores: ['mesen2', 'sameboy_libretro']
-	},
-	snes: {
-		name: 'SNES',
-		cores: ['mesen2', 'snes9x_libretro', 'bsnes_libretro', 'mesen-s_libretro']
-	},
-	ps: {
-		name: 'PlayStation',
-		cores: ['swanstation_libretro']
-	},
-	n64: {
-		name: 'N64',
-		cores: ['mupen64plus_next_libretro']
-	},
-	gba: {
-		name: 'Game Boy Advance',
-		cores: ['mgba', 'mgba_libretro']
-	},
-};
 
 
 // localStorage
@@ -701,7 +703,7 @@ function Body(props) {
 }
 
 function systemsToMenu() {
-	let items = [{etype: 'separator'}];
+	let items = [];
 
 	const keys = Object.keys(SYSTEMS);
 
@@ -801,11 +803,6 @@ class Main extends React.Component {
 					this.setState(json);
 
 					let menuItems = [...MENU_ITEMS];
-
-					// Append core selection to 'Advanced' menu
-					for (let x = 0; x < menuItems.length; x++)
-						if (menuItems[x].name == 'Advanced')
-							menuItems[x].items.push(...systemsToMenu())
 
 					menuItems.push(coreOptsToMenu(json.core_opts));
 
