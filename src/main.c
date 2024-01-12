@@ -634,10 +634,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	// If core is on the system and matches our internal hash, try to use it
 	if (file_ok) {
-		if (!loader_load(core_path))
-			return;
-
-		ctx->core = CoreLoad(core_path, main_system_dir(), main_save_dir());
+		ctx->core = loader_load(core_path, main_system_dir(), main_save_dir());
 		if (!ctx->core)
 			return;
 
@@ -1455,7 +1452,7 @@ int32_t main(int32_t argc, char **argv)
 	MTY_Mkdir(main_asset_dir());
 
 	// Get the function pointers assigned
-	loader_load(NULL);
+	loader_reset();
 
 	struct main ctx = {0};
 	ctx.running = true;

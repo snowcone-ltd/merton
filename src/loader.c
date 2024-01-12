@@ -1,10 +1,10 @@
-#include "loader.h"
-
 #include "matoya.h"
 
 #define CORE_FP
 #include "core.h"
 #include "rcore.h"
+
+#include "loader.h"
 
 static MTY_SO *LOADER_SO;
 
@@ -13,7 +13,6 @@ static void loader_set_rcore(void)
 	#define LOADER_SET_RCORE(sym, rsym) \
 		sym = rsym
 
-	LOADER_SET_RCORE(CoreLoad, rcore_load);
 	LOADER_SET_RCORE(CoreUnload, rcore_unload);
 	LOADER_SET_RCORE(CoreLoadGame, rcore_load_game);
 	LOADER_SET_RCORE(CoreUnloadGame, rcore_unload_game);
@@ -39,7 +38,7 @@ static void loader_set_rcore(void)
 	LOADER_SET_RCORE(CoreResetSettings, rcore_reset_settings);
 }
 
-bool loader_load(const char *name)
+Core *loader_load(const char *name, const char *system_dir, const char *save_dir)
 {
 	loader_reset();
 
@@ -52,41 +51,39 @@ bool loader_load(const char *name)
 
 	void *sym = (void *) MTY_SOGetSymbol(LOADER_SO, "retro_api_version");
 
-	if (sym) {
-		loader_reset();
+	if (sym)
+		return rcore_load(LOADER_SO, system_dir, save_dir);
 
-	} else {
-		#define LOADER_LOAD_SYM(sym) \
-			sym = MTY_SOGetSymbol(LOADER_SO, #sym); \
-			if (!sym) return false
+	#define LOADER_LOAD_SYM(sym) \
+		sym = MTY_SOGetSymbol(LOADER_SO, #sym); \
+		if (!sym) return false
 
-		LOADER_LOAD_SYM(CoreLoad);
-		LOADER_LOAD_SYM(CoreUnload);
-		LOADER_LOAD_SYM(CoreLoadGame);
-		LOADER_LOAD_SYM(CoreUnloadGame);
-		LOADER_LOAD_SYM(CoreReset);
-		LOADER_LOAD_SYM(CoreRun);
-		LOADER_LOAD_SYM(CoreSetButton);
-		LOADER_LOAD_SYM(CoreSetAxis);
-		LOADER_LOAD_SYM(CoreGetState);
-		LOADER_LOAD_SYM(CoreSetState);
-		LOADER_LOAD_SYM(CoreGetNumDisks);
-		LOADER_LOAD_SYM(CoreGetDisk);
-		LOADER_LOAD_SYM(CoreSetDisk);
-		LOADER_LOAD_SYM(CoreGetSaveData);
-		LOADER_LOAD_SYM(CoreGameIsLoaded);
-		LOADER_LOAD_SYM(CoreGetFrameRate);
-		LOADER_LOAD_SYM(CoreGetAspectRatio);
-		LOADER_LOAD_SYM(CoreSetLogFunc);
-		LOADER_LOAD_SYM(CoreSetAudioFunc);
-		LOADER_LOAD_SYM(CoreSetVideoFunc);
-		LOADER_LOAD_SYM(CoreGetAllSettings);
-		LOADER_LOAD_SYM(CoreSetSetting);
-		LOADER_LOAD_SYM(CoreGetSetting);
-		LOADER_LOAD_SYM(CoreResetSettings);
-	}
+	LOADER_LOAD_SYM(CoreLoad);
+	LOADER_LOAD_SYM(CoreUnload);
+	LOADER_LOAD_SYM(CoreLoadGame);
+	LOADER_LOAD_SYM(CoreUnloadGame);
+	LOADER_LOAD_SYM(CoreReset);
+	LOADER_LOAD_SYM(CoreRun);
+	LOADER_LOAD_SYM(CoreSetButton);
+	LOADER_LOAD_SYM(CoreSetAxis);
+	LOADER_LOAD_SYM(CoreGetState);
+	LOADER_LOAD_SYM(CoreSetState);
+	LOADER_LOAD_SYM(CoreGetNumDisks);
+	LOADER_LOAD_SYM(CoreGetDisk);
+	LOADER_LOAD_SYM(CoreSetDisk);
+	LOADER_LOAD_SYM(CoreGetSaveData);
+	LOADER_LOAD_SYM(CoreGameIsLoaded);
+	LOADER_LOAD_SYM(CoreGetFrameRate);
+	LOADER_LOAD_SYM(CoreGetAspectRatio);
+	LOADER_LOAD_SYM(CoreSetLogFunc);
+	LOADER_LOAD_SYM(CoreSetAudioFunc);
+	LOADER_LOAD_SYM(CoreSetVideoFunc);
+	LOADER_LOAD_SYM(CoreGetAllSettings);
+	LOADER_LOAD_SYM(CoreSetSetting);
+	LOADER_LOAD_SYM(CoreGetSetting);
+	LOADER_LOAD_SYM(CoreResetSettings);
 
-	return true;
+	return CoreLoad(name, system_dir, save_dir);
 }
 
 void loader_reset(void)

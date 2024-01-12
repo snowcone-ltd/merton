@@ -2,5 +2,5 @@
 
 #include <stdbool.h>
 
-bool loader_load(const char *name);
+Core *loader_load(const char *name, const char *system_dir, const char *save_dir);
 void loader_reset(void);

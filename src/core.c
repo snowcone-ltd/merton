@@ -5,14 +5,12 @@
 #include <math.h>
 #include <string.h>
 
-#include "matoya.h"
 #include "deps/libretro.h"
 
 #define CORE_VARIABLES_MAX 128
 #define CORE_AUDIO_BATCH   128
 
 struct Core {
-	MTY_SO *so;
 	bool game_loaded;
 	char *game_data;
 	size_t game_data_size;
@@ -524,10 +522,10 @@ static int16_t rcore_retro_input_state(unsigned port, unsigned device,
 
 // Core API
 
-static bool rcore_load_symbols(Core *ctx)
+static bool rcore_load_symbols(MTY_SO *so, Core *ctx)
 {
 	#define CORE_LOAD_SYM(sym) \
-		ctx->sym = MTY_SOGetSymbol(ctx->so, #sym); \
+		ctx->sym = MTY_SOGetSymbol(so, #sym); \
 		if (!ctx->sym) return false
 
 	CORE_LOAD_SYM(retro_set_environment);
@@ -556,7 +554,7 @@ static bool rcore_load_symbols(Core *ctx)
 	return true;
 }
 
-Core *rcore_load(const char *name, const char *system_dir, const char *save_dir)
+Core *rcore_load(MTY_SO *so, const char *system_dir, const char *save_dir)
 {
 	Core *ctx = MTY_Alloc(1, sizeof(Core));
 
@@ -567,13 +565,7 @@ Core *rcore_load(const char *name, const char *system_dir, const char *save_dir)
 
 	CORE_OPTS = MTY_HashCreate(0);
 
-	ctx->so = MTY_SOLoad(name);
-	if (!ctx->so) {
-		r = false;
-		goto except;
-	}
-
-	r = rcore_load_symbols(ctx);
+	r = rcore_load_symbols(so, ctx);
 	if (!r)
 		goto except;
 
@@ -612,7 +604,6 @@ void rcore_unload(Core **core)
 	if (ctx->retro_deinit)
 		ctx->retro_deinit();
 
-	MTY_SOUnload(&ctx->so);
 	MTY_Free(ctx->game_data);
 
 	// Globals
