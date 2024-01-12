@@ -620,6 +620,7 @@ static bool main_use_core_interface(const char *core)
 {
 	if (!strcmp(core, "mesen2")) return true;
 	if (!strcmp(core, "genesis-plus-gx")) return true;
+	if (!strcmp(core, "mgba")) return true;
 
 	return false;
 }
