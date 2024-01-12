@@ -701,7 +701,7 @@ function Body(props) {
 }
 
 function systemsToMenu() {
-	let mrow = {name: 'Cores', items: []};
+	let items = [{etype: 'separator'}];
 
 	const keys = Object.keys(SYSTEMS);
 
@@ -716,16 +716,16 @@ function systemsToMenu() {
 			mitem.opts.push({label: name, value: name});
 		}
 
-		mrow.items.push(mitem);
+		items.push(mitem);
 	}
 
-	return mrow;
+	return items;
 }
 
 function coreOptsToMenu(core_opts) {
-	let mrow = {name: 'Core Options', needsRunning: true, items: []};
+	let mrow = {name: 'Core Menu', needsRunning: true, items: []};
 
-	mrow.items.push({name: 'core-reset', type: 'action', etype: 'label', label: 'Reset Core Options'});
+	mrow.items.push({name: 'core-reset', type: 'action', etype: 'label', label: 'Reset Core Settings'});
 	mrow.items.push({etype: 'separator'});
 
 	const keys = Object.keys(core_opts);
@@ -801,7 +801,12 @@ class Main extends React.Component {
 					this.setState(json);
 
 					let menuItems = [...MENU_ITEMS];
-					menuItems.push(systemsToMenu());
+
+					// Append core selection to 'Advanced' menu
+					for (let x = 0; x < menuItems.length; x++)
+						if (menuItems[x].name == 'Advanced')
+							menuItems[x].items.push(...systemsToMenu())
+
 					menuItems.push(coreOptsToMenu(json.core_opts));
 
 					this.setState({menuItems: menuItems});
