@@ -122,7 +122,7 @@ typedef void (*CoreVideoFunc)(const void *buf, CoreColorFormat format, uint32_t 
 // 'systemDir' is where to look for BIOS files, 'saveDir' is ignored
 
 EXPORT Core *
-FP(CoreLoad)(const char *name, const char *systemDir, const char *saveDir);
+FP(CoreLoad)(const char *systemDir, const char *saveDir);
 
 EXPORT void
 FP(CoreUnload)(Core **core);

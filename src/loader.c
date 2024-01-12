@@ -83,7 +83,7 @@ Core *loader_load(const char *name, const char *system_dir, const char *save_dir
 	LOADER_LOAD_SYM(CoreGetSetting);
 	LOADER_LOAD_SYM(CoreResetSettings);
 
-	return CoreLoad(name, system_dir, save_dir);
+	return CoreLoad(system_dir, save_dir);
 }
 
 void loader_reset(void)
