@@ -30,22 +30,20 @@ mty_platform = {
 }
 
 cores = [
-	'stella',
-	'sameboy',
-	'mgba',
-	'genesis_plus_gx',
-	'mupen64plus_next',
-	'mesen',
-	'swanstation',
-	'bsnes',
-	'mesen-s',
-	'snes9x',
-	'mednafen_pce',
+	'stella_libretro',
+	'sameboy_libretro',
+	'mgba_libretro',
+	'genesis_plus_gx_libretro',
+	'mupen64plus_next_libretro',
+	'mesen_libretro',
+	'swanstation_libretro',
+	'bsnes_libretro',
+	'mesen-s_libretro',
+	'snes9x_libretro',
+	'mednafen_pce_libretro',
 ]
 
 def upload_to_s3(platform, arch, file_name, data):
-	file_name = file_name.replace('_libretro', '')
-
 	gz_tmp_name = '%s.gz' % file_name
 	gz_tmp = gzip.open(gz_tmp_name, 'wb')
 	gz_tmp.write(data)
@@ -115,7 +113,7 @@ if __name__ == '__main__':
 				for core in cores:
 					mty_plat = mty_platform[platform]
 
-					fname = '%s_libretro.%s' % (core, suffix[platform])
+					fname = '%s.%s' % (core, suffix[platform])
 					url = 'https://buildbot.libretro.com/nightly/%s/%s/latest/%s.zip' % (platform, arch, fname)
 					r = requests.get(url, headers={'User-Agent': user_agent})
 

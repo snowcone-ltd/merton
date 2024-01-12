@@ -199,16 +199,16 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 
 	CFG_GET_BOOL(fullscreen, cfg.window.type & MTY_WINDOW_FULLSCREEN);
 
-	CFG_GET_STR(core.atari2600, CONFIG_CORE_MAX, "stella");
-	CFG_GET_STR(core.gameboy, CONFIG_CORE_MAX, "sameboy");
+	CFG_GET_STR(core.atari2600, CONFIG_CORE_MAX, "stella_libretro");
+	CFG_GET_STR(core.gameboy, CONFIG_CORE_MAX, "mesen2");
 	CFG_GET_STR(core.gba, CONFIG_CORE_MAX, "mgba");
-	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis_plus_gx");
-	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "genesis_plus_gx");
-	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus_next");
-	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "mesen");
-	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "swanstation");
-	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen-s");
-	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mednafen_pce");
+	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis-plus-gx");
+	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus_next_libretro");
+	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "swanstation_libretro");
+	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mesen2");
 
 	const MTY_JSON *obj = MTY_JSONObjGetItem(jcfg, "core_options");
 	*core_options = obj ? MTY_JSONDuplicate(obj) : MTY_JSONObjCreate();
