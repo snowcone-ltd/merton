@@ -605,7 +605,7 @@ static void main_unload(struct main *ctx)
 {
 	main_save_sdata(ctx->core, ctx->content_name);
 	CoreUnload(&ctx->core);
-	loader_unload();
+	loader_reset();
 
 	MTY_Free(ctx->game_path);
 	MTY_Free(ctx->content_name);
@@ -614,15 +614,6 @@ static void main_unload(struct main *ctx)
 	ctx->content_name = NULL;
 
 	ctx->resampler_init = false;
-}
-
-static bool main_use_core_interface(const char *core)
-{
-	if (!strcmp(core, "mesen2")) return true;
-	if (!strcmp(core, "genesis-plus-gx")) return true;
-	if (!strcmp(core, "mgba")) return true;
-
-	return false;
 }
 
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
@@ -643,7 +634,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	// If core is on the system and matches our internal hash, try to use it
 	if (file_ok) {
-		if (!loader_load(core_path, !main_use_core_interface(core)))
+		if (!loader_load(core_path))
 			return;
 
 		ctx->core = CoreLoad(core_path, main_system_dir(), main_save_dir());
@@ -1464,7 +1455,7 @@ int32_t main(int32_t argc, char **argv)
 	MTY_Mkdir(main_asset_dir());
 
 	// Get the function pointers assigned
-	loader_load(NULL, true);
+	loader_load(NULL);
 
 	struct main ctx = {0};
 	ctx.running = true;

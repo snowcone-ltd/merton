@@ -39,18 +39,23 @@ static void loader_set_rcore(void)
 	LOADER_SET_RCORE(CoreResetSettings, rcore_reset_settings);
 }
 
-bool loader_load(const char *name, bool libretro)
+bool loader_load(const char *name)
 {
-	if (libretro) {
-		loader_set_rcore();
+	loader_reset();
+
+	if (!name)
+		return false;
+
+	LOADER_SO = MTY_SOLoad(name);
+	if (!LOADER_SO)
+		return false;
+
+	void *sym = (void *) MTY_SOGetSymbol(LOADER_SO, "retro_api_version");
+
+	if (sym) {
+		loader_reset();
 
 	} else {
-		loader_unload();
-
-		LOADER_SO = MTY_SOLoad(name);
-		if (!LOADER_SO)
-			return false;
-
 		#define LOADER_LOAD_SYM(sym) \
 			sym = MTY_SOGetSymbol(LOADER_SO, #sym); \
 			if (!sym) return false
@@ -84,7 +89,7 @@ bool loader_load(const char *name, bool libretro)
 	return true;
 }
 
-void loader_unload(void)
+void loader_reset(void)
 {
 	loader_set_rcore();
 	MTY_SOUnload(&LOADER_SO);

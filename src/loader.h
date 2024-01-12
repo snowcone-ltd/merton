@@ -2,5 +2,5 @@
 
 #include <stdbool.h>
 
-bool loader_load(const char *name, bool libretro);
-void loader_unload(void);
+bool loader_load(const char *name);
+void loader_reset(void);
