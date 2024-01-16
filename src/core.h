@@ -69,8 +69,9 @@ typedef enum {
 typedef enum {
 	CORE_COLOR_FORMAT_UNKNOWN  = 0,
 	CORE_COLOR_FORMAT_BGRA     = 1, // 32-bit, 8-bits per channel
-	CORE_COLOR_FORMAT_B5G6R5   = 2, // 16-bit
-	CORE_COLOR_FORMAT_B5G5R5A1 = 3, // 16-bit
+	CORE_COLOR_FORMAT_RGBA     = 2, // 32-bit, 8-bits per channel
+	CORE_COLOR_FORMAT_B5G6R5   = 3, // 16-bit
+	CORE_COLOR_FORMAT_B5G5R5A1 = 4, // 16-bit
 } CoreColorFormat;
 
 typedef enum {

@@ -456,12 +456,14 @@ static void main_video(const void *buf, CoreColorFormat format,
 
 	ctx->desc.format =
 		format == CORE_COLOR_FORMAT_BGRA ? MTY_COLOR_FORMAT_BGRA :
+		format == CORE_COLOR_FORMAT_RGBA ? MTY_COLOR_FORMAT_RGBA :
 		format == CORE_COLOR_FORMAT_B5G6R5 ? MTY_COLOR_FORMAT_BGR565 :
 		format == CORE_COLOR_FORMAT_B5G5R5A1 ? MTY_COLOR_FORMAT_BGRA5551 :
 		MTY_COLOR_FORMAT_UNKNOWN;
 
 	if (ctx->desc.format != MTY_COLOR_FORMAT_UNKNOWN) {
-		ctx->desc.imageWidth = (uint32_t) (format == CORE_COLOR_FORMAT_BGRA ? pitch / 4 : pitch / 2);
+		bool wide = format == CORE_COLOR_FORMAT_BGRA || format == CORE_COLOR_FORMAT_RGBA;
+		ctx->desc.imageWidth = (uint32_t) (wide ? pitch / 4 : pitch / 2);
 		ctx->desc.imageHeight = height;
 		ctx->desc.cropWidth = width;
 		ctx->desc.cropHeight = height;
