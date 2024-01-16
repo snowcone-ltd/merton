@@ -39,7 +39,7 @@ const SYSTEMS = {
 	},
 	n64: {
 		name: 'N64',
-		cores: ['mupen64plus_next_libretro']
+		cores: ['mupen64plus', 'mupen64plus_next_libretro']
 	},
 	gba: {
 		name: 'Game Boy Advance',
