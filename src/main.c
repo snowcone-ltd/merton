@@ -511,9 +511,13 @@ static void main_video(const void *buf, CoreColorFormat format,
 
 static void main_audio(const int16_t *buf, size_t frames, uint32_t sample_rate, void *opaque)
 {
-	struct main *ctx = opaque;
+	// XXX This function should be thread safe in case the core (mupen64plus)
+	// submits audio from a different thread. MTY_Queue is multi producer / single
+	// consumer safe.
 
-	struct audio_packet *pkt = MTY_QueueGetInputBuffer(ctx->a_q);
+	MTY_Queue *q = opaque;
+
+	struct audio_packet *pkt = MTY_QueueGetInputBuffer(q);
 
 	if (pkt) {
 		pkt->sample_rate = sample_rate;
@@ -521,7 +525,7 @@ static void main_audio(const int16_t *buf, size_t frames, uint32_t sample_rate, 
 
 		memcpy(pkt->data, buf, frames * 4);
 
-		MTY_QueuePush(ctx->a_q, sizeof(struct audio_packet));
+		MTY_QueuePush(q, sizeof(struct audio_packet));
 	}
 }
 
@@ -643,7 +647,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		main_set_core_options(ctx);
 
 		CoreSetLogFunc(ctx->core, main_log, &ctx);
-		CoreSetAudioFunc(ctx->core, main_audio, ctx);
+		CoreSetAudioFunc(ctx->core, main_audio, ctx->a_q);
 		CoreSetVideoFunc(ctx->core, main_video, ctx);
 
 		size_t sdata_size = 0;
@@ -1409,7 +1413,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				main_post_ui_controller(ctx->app, ctx->window, c);
 			}
 
-			bool pressed = c->buttons[MTY_CBUTTON_LEFT_TRIGGER];
+			bool pressed = c->buttons[MTY_CBUTTON_RIGHT_TRIGGER];
 
 			toggle_menu = pressed && ctx->ui_debounce != pressed;
 			ctx->ui_debounce = pressed;
