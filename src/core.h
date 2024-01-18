@@ -81,6 +81,7 @@ typedef enum {
 	CORE_SYSTEM_TG16    = 3, // TurboGrafx-16 (PC Engine)
 	CORE_SYSTEM_GAMEBOY = 4,
 	CORE_SYSTEM_SNES    = 5, // Super Nintendo Entertainment System
+	CORE_SYSTEM_N64     = 6, // Nintendo 64
 } CoreSystem;
 
 typedef enum {

@@ -49,7 +49,9 @@ Core *loader_load(const char *name, const char *system_dir, const char *save_dir
 	if (!LOADER_SO)
 		return false;
 
+	MTY_DisableLog(true);
 	void *sym = (void *) MTY_SOGetSymbol(LOADER_SO, "retro_api_version");
+	MTY_DisableLog(false);
 
 	if (sym)
 		return rcore_load(LOADER_SO, system_dir, save_dir);

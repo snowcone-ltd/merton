@@ -204,7 +204,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_STR(core.gba, CONFIG_CORE_MAX, "mgba");
 	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis-plus-gx");
 	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "mesen2");
-	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus_next_libretro");
+	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus");
 	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "mesen2");
 	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "swanstation_libretro");
 	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen2");
@@ -541,6 +541,7 @@ static CoreSystem main_get_core_system(const char *key)
 	if (!strcmp(key, "tg16")) return CORE_SYSTEM_TG16;
 	if (!strcmp(key, "gameboy")) return CORE_SYSTEM_GAMEBOY;
 	if (!strcmp(key, "snes")) return CORE_SYSTEM_SNES;
+	if (!strcmp(key, "n64")) return CORE_SYSTEM_N64;
 
 	return CORE_SYSTEM_UNKNOWN;
 }
@@ -612,6 +613,9 @@ static void main_unload(struct main *ctx)
 	main_save_sdata(ctx->core, ctx->content_name);
 	CoreUnload(&ctx->core);
 	loader_reset();
+
+	uint16_t tmp[128][128] = {0};
+	main_video(tmp, CORE_COLOR_FORMAT_B5G6R5, 128, 128, 128 * 2, ctx);
 
 	MTY_Free(ctx->game_path);
 	MTY_Free(ctx->content_name);
