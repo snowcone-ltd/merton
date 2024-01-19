@@ -7,7 +7,7 @@ const OPACITY = '0.97';
 const SYSTEMS = {
 	atari2600: {
 		name: 'Atari 2600',
-		cores: ['stella_libretro']
+		cores: ['stella', 'stella_libretro']
 	},
 	nes: {
 		name: 'NES',
