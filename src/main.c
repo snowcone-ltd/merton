@@ -98,6 +98,7 @@ struct main {
 	struct config cfg;
 	uint8_t last_save_index;
 	uint8_t last_load_index;
+	double core_fps;
 	bool ui_visible;
 	bool ui_debounce;
 	bool running;
@@ -666,6 +667,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		ctx->system = system;
 		ctx->game_path = MTY_Strdup(name);
 		ctx->content_name = MTY_Strdup(content_name);
+		ctx->core_fps = CoreGetFrameRate(ctx->core);
 
 		struct app_event evt = {.type = APP_EVENT_TITLE};
 		snprintf(evt.title, APP_TITLE_MAX, "%s - %s", APP_NAME, ctx->content_name);
@@ -1234,17 +1236,15 @@ static void *main_audio_thread(void *opaque)
 
 		// Dequeue audio data from the core
 		for (struct audio_packet *pkt = NULL; MTY_QueueGetOutputBuffer(ctx->a_q, 10, (void **) &pkt, NULL);) {
-			// TODO TARGET_RATE should likely be some kind of modified sample rate based on
-			// the actual FPS vs. the core's target FPS. If using adaptive sync, these numbers should
-			// always match
-			#define TARGET_RATE(rate) (rate)
+			// TODO Instead of dividing by 60.0, it would be better to know the actual refresh rate
+			uint32_t scaled_rate = !ctx->cfg.vsync ? playback_rate : lrint((ctx->core_fps / 60.0) * playback_rate);
 
 			// Reset resampler on sample rate changes
 			if (sample_rate != pkt->sample_rate || !ctx->resampler_init) {
 				MTY_ResamplerReset(rsp);
 
 				sample_rate = pkt->sample_rate;
-				target_rate = lrint(TARGET_RATE(playback_rate));
+				target_rate = scaled_rate;
 				correct_high = correct_low = false;
 
 				ctx->resampler_init = true;
@@ -1260,9 +1260,9 @@ static void *main_audio_thread(void *opaque)
 			}
 
 			// Correct buffer drift by tweaking the output sample rate
-			uint32_t low = pcm_buffer / 2;
+			uint32_t low = lrint(pcm_buffer / 1.5);
 			uint32_t mid = pcm_buffer;
-			uint32_t high = pcm_buffer + low;
+			uint32_t high = pcm_buffer + (pcm_buffer - low);
 			uint32_t queued = MTY_AudioGetQueued(audio);
 
 			if (queued <= mid)
@@ -1274,14 +1274,14 @@ static void *main_audio_thread(void *opaque)
 			if (!correct_high && !correct_low) {
 				if (queued >= high) {
 					correct_high = true;
-					target_rate = lrint(TARGET_RATE(playback_rate) * 0.995);
+					target_rate = lrint(scaled_rate * 0.994);
 
 				} else if (queued <= low) {
 					correct_low = true;
-					target_rate = lrint(TARGET_RATE(playback_rate) * 1.005);
+					target_rate = lrint(scaled_rate * 1.006);
 
 				} else {
-					target_rate = lrint(TARGET_RATE(playback_rate));
+					target_rate = lrint(scaled_rate);
 				}
 			}
 
@@ -1467,6 +1467,7 @@ int32_t main(int32_t argc, char **argv)
 
 	struct main ctx = {0};
 	ctx.running = true;
+	ctx.core_fps = 60;
 
 	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options, &ctx.core_exts);
 	ctx.core_hash = main_load_core_hash();
