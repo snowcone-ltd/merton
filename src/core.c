@@ -725,7 +725,7 @@ double rcore_get_frame_rate(Core *ctx)
 float rcore_get_aspect_ratio(Core *ctx)
 {
 	if (!ctx || !ctx->game_loaded)
-		return 0.0f;
+		return 1.0f;
 
 	float ar = RETRO_GAME_GEOMETRY.aspect_ratio;
 

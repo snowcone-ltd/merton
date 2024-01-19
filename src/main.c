@@ -614,8 +614,9 @@ static void main_unload(struct main *ctx)
 	CoreUnload(&ctx->core);
 	loader_reset();
 
-	uint16_t tmp[128][128] = {0};
-	main_video(tmp, CORE_COLOR_FORMAT_B5G6R5, 128, 128, 128 * 2, ctx);
+	uint16_t tmp[8][8] = {0};
+	main_video(tmp, CORE_COLOR_FORMAT_B5G6R5, 8, 8, 8 * 2, ctx);
+	MTY_WindowPresent(ctx->app, ctx->window);
 
 	MTY_Free(ctx->game_path);
 	MTY_Free(ctx->content_name);
