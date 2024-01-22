@@ -35,7 +35,7 @@ const SYSTEMS = {
 	},
 	ps: {
 		name: 'PlayStation',
-		cores: ['swanstation_libretro']
+		cores: ['duckstation', 'swanstation_libretro']
 	},
 	n64: {
 		name: 'N64',

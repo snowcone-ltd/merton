@@ -626,6 +626,10 @@ static void main_unload(struct main *ctx)
 	ctx->content_name = NULL;
 
 	ctx->resampler_init = false;
+
+	struct app_event evt = {.type = APP_EVENT_TITLE};
+	snprintf(evt.title, APP_TITLE_MAX, "%s", APP_NAME);
+	main_push_app_event(&evt, ctx);
 }
 
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
@@ -1116,10 +1120,6 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 			}
 			case APP_EVENT_UNLOAD_GAME: {
 				main_unload(ctx);
-
-				struct app_event tevt = {.type = APP_EVENT_TITLE};
-				snprintf(tevt.title, APP_TITLE_MAX, "%s", APP_NAME);
-				main_push_app_event(&tevt, ctx);
 				break;
 			}
 			case APP_EVENT_CLEAR_OPTS: {
