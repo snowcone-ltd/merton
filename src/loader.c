@@ -22,9 +22,7 @@ static void loader_set_rcore(void)
 	LOADER_SET_RCORE(CoreSetAxis, rcore_set_axis);
 	LOADER_SET_RCORE(CoreGetState, rcore_get_state);
 	LOADER_SET_RCORE(CoreSetState, rcore_set_state);
-	LOADER_SET_RCORE(CoreGetNumDisks, rcore_get_num_disks);
-	LOADER_SET_RCORE(CoreGetDisk, rcore_get_disk);
-	LOADER_SET_RCORE(CoreSetDisk, rcore_set_disk);
+	LOADER_SET_RCORE(CoreInsertDisc, rcore_insert_disc);
 	LOADER_SET_RCORE(CoreGetSaveData, rcore_get_save_data);
 	LOADER_SET_RCORE(CoreGameIsLoaded, rcore_game_is_loaded);
 	LOADER_SET_RCORE(CoreGetFrameRate, rcore_get_frame_rate);
@@ -70,9 +68,7 @@ Core *loader_load(const char *name, const char *system_dir, const char *save_dir
 	LOADER_LOAD_SYM(CoreSetAxis);
 	LOADER_LOAD_SYM(CoreGetState);
 	LOADER_LOAD_SYM(CoreSetState);
-	LOADER_LOAD_SYM(CoreGetNumDisks);
-	LOADER_LOAD_SYM(CoreGetDisk);
-	LOADER_LOAD_SYM(CoreSetDisk);
+	LOADER_LOAD_SYM(CoreInsertDisc);
 	LOADER_LOAD_SYM(CoreGetSaveData);
 	LOADER_LOAD_SYM(CoreGameIsLoaded);
 	LOADER_LOAD_SYM(CoreGetFrameRate);

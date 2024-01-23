@@ -850,7 +850,7 @@ static void main_post_ui_state(struct main *ctx)
 	}
 
 	// Other native state
-	bool has_disks = CoreGetNumDisks(ctx->core) > 0;
+	bool has_disks = false;
 	MTY_JSON *nstate = MTY_JSONObjCreate();
 	MTY_JSONObjSetItem(msg, "nstate", nstate);
 	MTY_JSONObjSetBool(nstate, "pause", ctx->paused);
@@ -858,8 +858,8 @@ static void main_post_ui_state(struct main *ctx)
 	MTY_JSONObjSetNumber(nstate, "save-state", ctx->last_save_index);
 	MTY_JSONObjSetNumber(nstate, "load-state", ctx->last_load_index);
 	MTY_JSONObjSetBool(nstate, "has_disks", has_disks);
-	MTY_JSONObjSetNumber(nstate, "num_disks", CoreGetNumDisks(ctx->core));
-	MTY_JSONObjSetNumber(nstate, "disk", has_disks ? CoreGetDisk(ctx->core) : -1);
+	MTY_JSONObjSetNumber(nstate, "num_disks", 0);
+	MTY_JSONObjSetNumber(nstate, "disk", -1);
 	MTY_JSONObjSetBool(nstate, "allow_window_adjustments", !main_ui_is_steam());
 
 	char *jmsg = MTY_JSONSerialize(msg);
@@ -1176,7 +1176,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				break;
 			}
 			case APP_EVENT_SET_DISK:
-				CoreSetDisk(ctx->core, evt->disk, NULL);
+				CoreInsertDisc(ctx->core, "");
 				break;
 			case APP_EVENT_HIDE_MENU:
 				main_ui_show(ctx->app, ctx->window, false);

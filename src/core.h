@@ -201,17 +201,10 @@ EXPORT bool
 FP(CoreSetState)(Core *ctx, const void *state, size_t size);
 
 
-// Disk interface
-// Set a disk value of '-1' to eject
-
-EXPORT uint8_t
-FP(CoreGetNumDisks)(Core *ctx);
-
-EXPORT int8_t
-FP(CoreGetDisk)(Core *ctx);
+// CD interface
 
 EXPORT bool
-FP(CoreSetDisk)(Core *ctx, int8_t disk, const char *path);
+FP(CoreInsertDisc)(Core *ctx, const char *path);
 
 
 // Settings

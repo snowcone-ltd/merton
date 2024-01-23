@@ -778,51 +778,15 @@ bool rcore_set_state(Core *ctx, const void *state, size_t size)
 	return ctx->retro_unserialize(state, size);
 }
 
-uint8_t rcore_get_num_disks(Core *ctx)
-{
-	if (!ctx || !ctx->game_loaded)
-		return 0;
-
-	if (RETRO_DISK_CONTROL_CALLBACK.get_num_images)
-		return (uint8_t) RETRO_DISK_CONTROL_CALLBACK.get_num_images();
-
-	return 0;
-}
-
-int8_t rcore_get_disk(Core *ctx)
-{
-	if (!ctx || !ctx->game_loaded)
-		return 0;
-
-	if (RETRO_DISK_CONTROL_CALLBACK.get_eject_state)
-		if (RETRO_DISK_CONTROL_CALLBACK.get_eject_state())
-			return -1;
-
-	if (RETRO_DISK_CONTROL_CALLBACK.get_image_index)
-		return (int8_t) RETRO_DISK_CONTROL_CALLBACK.get_image_index();
-
-	return -1;
-}
-
-bool rcore_set_disk(Core *ctx, int8_t disk, const char *path)
+bool rcore_insert_disc(Core *ctx, const char *path)
 {
 	if (!ctx || !ctx->game_loaded)
 		return false;
 
+	if (RETRO_DISK_CONTROL_CALLBACK.set_eject_state)
+		RETRO_DISK_CONTROL_CALLBACK.set_eject_state(true);
+
 	// TODO This is where we would load PSX disks
-
-	if (disk < 0) {
-		if (RETRO_DISK_CONTROL_CALLBACK.set_eject_state)
-			RETRO_DISK_CONTROL_CALLBACK.set_eject_state(true);
-
-	} else if (RETRO_DISK_CONTROL_CALLBACK.set_image_index) {
-		bool r = RETRO_DISK_CONTROL_CALLBACK.set_image_index((unsigned) disk);
-
-		if (RETRO_DISK_CONTROL_CALLBACK.set_eject_state)
-			RETRO_DISK_CONTROL_CALLBACK.set_eject_state(false);
-
-		return r;
-	}
 
 	return false;
 }

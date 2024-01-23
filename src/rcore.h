@@ -13,9 +13,7 @@ void rcore_set_button(Core *ctx, uint8_t player, CoreButton button, bool pressed
 void rcore_set_axis(Core *ctx, uint8_t player, CoreAxis axis, int16_t value);
 void *rcore_get_state(Core *ctx, size_t *size);
 bool rcore_set_state(Core *ctx, const void *state, size_t size);
-uint8_t rcore_get_num_disks(Core *ctx);
-int8_t rcore_get_disk(Core *ctx);
-bool rcore_set_disk(Core *ctx, int8_t disk, const char *path);
+bool rcore_insert_disc(Core *ctx, const char *path);
 void *rcore_get_save_data(Core *ctx, size_t *size);
 bool rcore_game_is_loaded(Core *ctx);
 double rcore_get_frame_rate(Core *ctx);
