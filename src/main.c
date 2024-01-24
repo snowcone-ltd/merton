@@ -37,6 +37,15 @@
 
 #define MTN_DEBUG_CORE 1
 
+#if !defined(_WIN32)
+static int32_t fopen_s(FILE **f, const char *name, const char *mode)
+{
+	*f = fopen(name, mode);
+
+	return *f ? 0 : -1;
+}
+#endif
+
 enum app_event_type {
 	APP_EVENT_TITLE       = 1,
 	APP_EVENT_LOAD_GAME   = 2,
@@ -227,7 +236,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 		MTY_JSONObjSetString(*core_exts, "ms", "sms|gg");
 		MTY_JSONObjSetString(*core_exts, "n64", "n64|v64|z64");
 		MTY_JSONObjSetString(*core_exts, "nes", "nes|fds|qd|unf|unif");
-		MTY_JSONObjSetString(*core_exts, "ps", "cue");
+		MTY_JSONObjSetString(*core_exts, "ps", "");
 		MTY_JSONObjSetString(*core_exts, "snes", "smc|sfc|bs");
 		MTY_JSONObjSetString(*core_exts, "tg16", "pce");
 	}
@@ -547,12 +556,70 @@ static CoreSystem main_get_core_system(const char *key)
 	return CORE_SYSTEM_UNKNOWN;
 }
 
+static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name,
+	const char **core)
+{
+	*core = CONFIG_GET_CORE(&ctx->cfg, "tg16");
+	CoreSystem sys = CORE_SYSTEM_TG16;
+
+	MTY_FileList *list = MTY_GetFileList(MTY_GetPathPrefix(name), ".bin");
+	if (!list)
+		return sys;
+
+	size_t header_size = 38 * 1024;
+	size_t ps_offset = 37 * 1024;
+	char *buf = calloc(1, header_size + 1);
+
+	for (uint32_t x = 0; x < list->len && sys == CORE_SYSTEM_TG16; x++) {
+		MTY_FileDesc *desc = &list->files[x];
+
+		if (desc->dir)
+			continue;
+
+		FILE *f = NULL;
+		if (fopen_s(&f, desc->path, "rb") != 0)
+			continue;
+
+		size_t n = fread(buf, 1, header_size, f);
+
+		if (n > 0) {
+			for (size_t y = 0; y < n; y++)
+				if (buf[y] == 0)
+					buf[y] = 1;
+
+			// PLAYSTATION is about 37KB in
+			if (strstr(buf + ps_offset, "PLAYSTATION")) {
+				*core = CONFIG_GET_CORE(&ctx->cfg, "ps");
+				sys = CORE_SYSTEM_UNKNOWN;
+			}
+
+			// SEGADISCSYSTEM is close to the beginning
+			buf[1024] = 0;
+
+			if (strstr(buf, "SEGADISCSYSTEM")) {
+				*core = CONFIG_GET_CORE(&ctx->cfg, "genesis");
+				sys = CORE_SYSTEM_UNKNOWN;
+			}
+		}
+
+		fclose(f);
+	}
+
+	free(buf);
+	MTY_FreeFileList(&list);
+
+	return sys;
+}
+
 static CoreSystem main_get_system_by_ext(struct main *ctx, const char *name,
 	const char **core)
 {
 	*core = NULL;
 
 	const char *ext = MTY_GetFileExtension(name);
+
+	if (!strcmp(ext, "cue"))
+		return main_get_cdrom_system(ctx, name, core);
 
 	uint64_t iter = 0;
 
