@@ -33,7 +33,7 @@ extern "C" {
 #define CORE_KEY_NAME_MAX  64
 #define CORE_OPT_NAME_MAX  64
 
-#define CORE_FRAMES_MAX    0x4000
+#define CORE_FRAMES_MAX    0x3000
 #define CORE_SAMPLES_MAX   (CORE_FRAMES_MAX * 2)
 
 typedef struct Core Core;

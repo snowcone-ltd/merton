@@ -1480,7 +1480,7 @@ int32_t main(int32_t argc, char **argv)
 
 	ctx.rt_q = MTY_QueueCreate(50, sizeof(struct app_event));
 	ctx.mt_q = MTY_QueueCreate(50, sizeof(struct app_event));
-	ctx.a_q = MTY_QueueCreate(5, sizeof(struct audio_packet));
+	ctx.a_q = MTY_QueueCreate(15, sizeof(struct audio_packet));
 
 	if (argc >= 2) {
 		struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
