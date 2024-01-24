@@ -554,13 +554,13 @@ static bool rcore_load_symbols(MTY_SO *so, Core *ctx)
 	return true;
 }
 
-Core *rcore_load(MTY_SO *so, const char *system_dir, const char *save_dir)
+Core *rcore_load(MTY_SO *so, const char *system_dir)
 {
 	Core *ctx = MTY_Alloc(1, sizeof(Core));
 
 	bool r = true;
 
-	snprintf(CORE_SAVE_DIR, MTY_PATH_MAX, "%s", save_dir);
+	snprintf(CORE_SAVE_DIR, MTY_PATH_MAX, "%s", system_dir);
 	snprintf(CORE_SYSTEM_DIR, MTY_PATH_MAX, "%s", system_dir);
 
 	CORE_OPTS = MTY_HashCreate(0);

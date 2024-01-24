@@ -36,7 +36,7 @@ static void loader_set_rcore(void)
 	LOADER_SET_RCORE(CoreResetSettings, rcore_reset_settings);
 }
 
-Core *loader_load(const char *name, const char *system_dir, const char *save_dir)
+Core *loader_load(const char *name, const char *system_dir)
 {
 	loader_reset();
 
@@ -52,7 +52,7 @@ Core *loader_load(const char *name, const char *system_dir, const char *save_dir
 	MTY_DisableLog(false);
 
 	if (sym)
-		return rcore_load(LOADER_SO, system_dir, save_dir);
+		return rcore_load(LOADER_SO, system_dir);
 
 	#define LOADER_LOAD_SYM(sym) \
 		sym = MTY_SOGetSymbol(LOADER_SO, #sym); \
@@ -81,7 +81,7 @@ Core *loader_load(const char *name, const char *system_dir, const char *save_dir
 	LOADER_LOAD_SYM(CoreGetSetting);
 	LOADER_LOAD_SYM(CoreResetSettings);
 
-	return CoreLoad(system_dir, save_dir);
+	return CoreLoad(system_dir);
 }
 
 void loader_reset(void)

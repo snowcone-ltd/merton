@@ -2,7 +2,7 @@
 
 #include "matoya.h"
 
-Core *rcore_load(MTY_SO *so, const char *system_dir, const char *save_dir);
+Core *rcore_load(MTY_SO *so, const char *system_dir);
 void rcore_unload(Core **core);
 bool rcore_load_game(Core *ctx, CoreSystem system, const char *path,
 	const void *save_data, size_t save_data_size);
