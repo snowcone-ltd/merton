@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <locale.h>
 
 #include "matoya.h"
 
@@ -1526,6 +1527,8 @@ static void main_mty_log_callback(const char *msg, void *opaque)
 
 int32_t main(int32_t argc, char **argv)
 {
+	setlocale(LC_ALL, ".utf8");
+
 	MTY_HttpAsyncCreate(4);
 	MTY_Mkdir(main_asset_dir());
 
