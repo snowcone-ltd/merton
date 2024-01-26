@@ -104,6 +104,9 @@ FLAGS := $(FLAGS) \
 	-isysroot $(shell xcrun --sdk $(TARGET) --show-sdk-path) \
 	-arch $(ARCH)
 
+LD_FLAGS := $(LD_FLAGS) \
+	-arch $(ARCH)
+
 endif
 endif
 
