@@ -131,5 +131,5 @@ if __name__ == '__main__':
 
 	cloudfront_invalidate('E2ULM8DUHAWNQK')
 
-	open(core_hash_json_path, 'w').write(json.dumps(out, indent='\t', separators=(',', ': ')))
+	open(core_hash_json_path, 'w').write('%s\n' % json.dumps(out, indent='\t', separators=(',', ': ')))
 	open(core_hash_path, 'w').write('static const char *CORE_HASH = %s;\n' % json.dumps(json.dumps(out)))
