@@ -3,7 +3,7 @@ ARCH = %%Platform%%
 BIN = merton.exe
 
 OBJS = \
-	src\core.obj \
+	src\rcore.obj \
 	src\loader.obj \
 	src\main.obj
 

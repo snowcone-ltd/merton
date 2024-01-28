@@ -3,7 +3,7 @@ ARCH = $(shell uname -m)
 NAME = merton
 
 OBJS = \
-	src/core.o \
+	src/rcore.o \
 	src/loader.o \
 	src/main.o
 
