@@ -146,22 +146,27 @@ static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 };
 
 
-// Helpers
+// Filesystem helpers
 
 static const char *main_asset_dir(void)
 {
 	return MTY_JoinPath(MTY_GetProcessDir(), "merton-files");
 }
 
-static const char *main_save_dir(void)
+static const char *main_path(const char *path)
 {
-	return MTY_JoinPath(main_asset_dir(), "save");
+	return MTY_JoinPath(main_asset_dir(), path);
 }
 
-static const char *main_system_dir(void)
-{
-	return MTY_JoinPath(main_asset_dir(), "system");
-}
+#define main_cores_dir() main_path("cores")
+#define main_save_dir() main_path("save")
+#define main_state_dir() main_path("state")
+#define main_system_dir() main_path("system")
+#define main_tmp_dir() main_path("tmp")
+#define main_ui_dir() main_path("ui")
+
+#define main_config_file() main_path("config.json")
+#define main_core_hash_file() main_path("core-hash.json")
 
 
 // Config
@@ -301,13 +306,13 @@ static void main_save_config(struct config *cfg, const MTY_JSON *core_options, c
 {
 	MTY_JSON *jcfg = main_serialize_config(cfg, core_options, core_exts);
 
-	MTY_JSONWriteFile(MTY_JoinPath(main_asset_dir(), "config.json"), jcfg);
+	MTY_JSONWriteFile(main_config_file(), jcfg);
 	MTY_JSONDestroy(&jcfg);
 }
 
 static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options, MTY_JSON **core_exts)
 {
-	MTY_JSON *jcfg = MTY_JSONReadFile(MTY_JoinPath(main_asset_dir(), "config.json"));
+	MTY_JSON *jcfg = MTY_JSONReadFile(main_config_file());
 	if (!jcfg)
 		jcfg = MTY_JSONObjCreate();
 
@@ -321,7 +326,7 @@ static MTY_JSON *main_load_core_hash(void)
 {
 	MTY_JSON *core_hash = MTY_JSONParse(CORE_HASH);
 
-	const char *core_hash_path = MTY_JoinPath(main_asset_dir(), "core-hash.json");
+	const char *core_hash_path = main_core_hash_file();
 	if (!MTY_FileExists(core_hash_path))
 		MTY_JSONWriteFile(core_hash_path, core_hash);
 
@@ -347,9 +352,7 @@ static MTY_JSON *main_load_core_hash(void)
 
 static void main_save_core_hash(const MTY_JSON *core_hash)
 {
-	const char *core_hash_path = MTY_JoinPath(main_asset_dir(), "core-hash.json");
-
-	MTY_JSONWriteFile(core_hash_path, core_hash);
+	MTY_JSONWriteFile(main_core_hash_file(), core_hash);
 }
 
 
@@ -435,7 +438,7 @@ static void main_poll_core_fetch(struct main *ctx)
 
 	if (async == MTY_ASYNC_OK) {
 		if (status == 200) {
-			const char *base = MTY_JoinPath(main_asset_dir(), "cores");
+			const char *base = main_cores_dir();
 			MTY_Mkdir(base);
 
 			const char *path = MTY_JoinPath(base, ctx->core_fetch.file);
@@ -710,7 +713,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 	main_unload(ctx);
 
 	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
-	const char *core_path = MTY_JoinPath(MTY_JoinPath(main_asset_dir(), "cores"), cname);
+	const char *core_path = MTY_JoinPath(main_cores_dir(), cname);
 	const char *content_name = MTY_GetFileName(name, false);
 
 	bool file_ok = MTY_FileExists(core_path) &&
@@ -779,7 +782,7 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 
 	// The Steam WebView needs to know about the location of the SO
 	const char *fdir = main_ui_is_steam() ? MTY_JoinPath("deps", "steam") :
-		MTY_JoinPath(main_asset_dir(), "tmp");
+		main_tmp_dir();
 
 	MTY_WindowSetWebView(app, window, fdir, MTN_DEBUG_WEBVIEW);
 
@@ -791,7 +794,7 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 
 	// Production location, bootstrap from UI_ZIP if necessary
 	} else {
-		const char *ui = MTY_JoinPath(main_asset_dir(), "ui");
+		const char *ui = main_ui_dir();
 		char *id = MTY_ReadFile(MTY_JoinPath(ui, "id.txt"), NULL);
 
 		if (!id || strcmp(id, UI_ZIP_ID)) {
@@ -1213,7 +1216,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				if (state) {
 					ctx->last_save_index = evt->state_index;
 
-					const char *path = MTY_JoinPath(main_asset_dir(), "state");
+					const char *path = main_state_dir();
 					MTY_Mkdir(path);
 
 					const char *name = MTY_SprintfDL("%s.state%u", ctx->content_name, evt->state_index);
@@ -1227,13 +1230,10 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				if (!ctx->content_name || !CoreGameIsLoaded(ctx->core))
 					break;
 
-				const char *path = MTY_JoinPath(main_asset_dir(), "state");
-				MTY_Mkdir(path);
-
 				const char *name = MTY_SprintfDL("%s.state%u", ctx->content_name, evt->state_index);
 
 				size_t size = 0;
-				void *state = MTY_ReadFile(MTY_JoinPath(path, name), &size);
+				void *state = MTY_ReadFile(MTY_JoinPath(main_state_dir(), name), &size);
 
 				if (state) {
 					if (CoreSetState(ctx->core, state, size))
