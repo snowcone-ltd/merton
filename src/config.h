@@ -23,6 +23,17 @@
 	(cfg)->core.tg16 \
 )
 
+#define config_asset_dir()      MTY_JoinPath(MTY_GetProcessDir(), "merton-files")
+#define config_path(path)       MTY_JoinPath(config_asset_dir(), path)
+#define config_cores_dir()      config_path("cores")
+#define config_save_dir()       config_path("save")
+#define config_state_dir()      config_path("state")
+#define config_system_dir()     config_path("system")
+#define config_tmp_dir()        config_path("tmp")
+#define config_ui_dir()         config_path("ui")
+#define config_file()           config_path("config.json")
+#define config_core_hash_file() config_path("core-hash.json")
+
 struct config {
 	bool bg_pause;
 	bool menu_pause;

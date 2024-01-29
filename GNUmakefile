@@ -3,6 +3,7 @@ ARCH = $(shell uname -m)
 NAME = merton
 
 OBJS = \
+	src/csync.o \
 	src/rcore.o \
 	src/loader.o \
 	src/main.o
@@ -24,7 +25,7 @@ ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g3
 else
 FLAGS := $(FLAGS) -O3 -g0 -flto -fvisibility=hidden
-LD_FLAGS := -flto
+LD_FLAGS = -flto
 endif
 
 ############
@@ -65,7 +66,7 @@ LIBS = \
 	-lc \
 	-lm
 
-LD_FLAGS = \
+LD_FLAGS := $(LD_FLAGS) \
 	-nodefaultlibs
 
 endif

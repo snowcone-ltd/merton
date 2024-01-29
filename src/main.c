@@ -15,28 +15,19 @@
 
 #include "app.h"
 #include "config.h"
+#include "csync.h"
 #include "loader.h"
 #include "ui-zip.h"
-
-#include "assets/core-hash.h"
 
 #define APP_TITLE_MAX 1024
 #define MAIN_WINDOW_W 800
 #define MAIN_WINDOW_H 600
-
-#if defined(__arm64__)
-	#define MTN_CORE_ARCH "arm64"
-#else
-	#define MTN_CORE_ARCH "x86_64"
-#endif
 
 #if defined(MTN_DEBUG)
 	#define MTN_DEBUG_WEBVIEW true
 #else
 	#define MTN_DEBUG_WEBVIEW false
 #endif
-
-#define MTN_DEBUG_CORE 1
 
 #if !defined(_WIN32)
 static int32_t fopen_s(FILE **f, const char *name, const char *mode)
@@ -92,6 +83,7 @@ struct app_event {
 
 struct main {
 	Core *core;
+	struct csync *csync;
 
 	char *game_path;
 	char *content_name;
@@ -100,7 +92,6 @@ struct main {
 	MTY_JSON *jcfg;
 	MTY_JSON *core_options;
 	MTY_JSON *core_exts;
-	MTY_JSON *core_hash;
 	MTY_Window window;
 	MTY_Queue *rt_q;
 	MTY_Queue *mt_q;
@@ -119,12 +110,7 @@ struct main {
 
 	MTY_RenderDesc desc;
 
-	struct {
-		uint32_t req;
-		char file[MTY_PATH_MAX];
-		char name[MTY_PATH_MAX];
-		char core[CONFIG_CORE_MAX];
-	} core_fetch;
+	char next_game[MTY_PATH_MAX];
 };
 
 
@@ -144,29 +130,6 @@ static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 	[MTY_KEY_A]         = CORE_BUTTON_DPAD_L,
 	[MTY_KEY_D]         = CORE_BUTTON_DPAD_R,
 };
-
-
-// Filesystem helpers
-
-static const char *main_asset_dir(void)
-{
-	return MTY_JoinPath(MTY_GetProcessDir(), "merton-files");
-}
-
-static const char *main_path(const char *path)
-{
-	return MTY_JoinPath(main_asset_dir(), path);
-}
-
-#define main_cores_dir() main_path("cores")
-#define main_save_dir() main_path("save")
-#define main_state_dir() main_path("state")
-#define main_system_dir() main_path("system")
-#define main_tmp_dir() main_path("tmp")
-#define main_ui_dir() main_path("ui")
-
-#define main_config_file() main_path("config.json")
-#define main_core_hash_file() main_path("core-hash.json")
 
 
 // Config
@@ -306,13 +269,13 @@ static void main_save_config(struct config *cfg, const MTY_JSON *core_options, c
 {
 	MTY_JSON *jcfg = main_serialize_config(cfg, core_options, core_exts);
 
-	MTY_JSONWriteFile(main_config_file(), jcfg);
+	MTY_JSONWriteFile(config_file(), jcfg);
 	MTY_JSONDestroy(&jcfg);
 }
 
 static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options, MTY_JSON **core_exts)
 {
-	MTY_JSON *jcfg = MTY_JSONReadFile(main_config_file());
+	MTY_JSON *jcfg = MTY_JSONReadFile(config_file());
 	if (!jcfg)
 		jcfg = MTY_JSONObjCreate();
 
@@ -322,142 +285,10 @@ static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options, M
 	return main_serialize_config(cfg, *core_options, *core_exts);
 }
 
-static MTY_JSON *main_load_core_hash(void)
-{
-	MTY_JSON *core_hash = MTY_JSONParse(CORE_HASH);
-
-	const char *core_hash_path = main_core_hash_file();
-	if (!MTY_FileExists(core_hash_path))
-		MTY_JSONWriteFile(core_hash_path, core_hash);
-
-	MTY_JSON *fcore_hash = MTY_JSONReadFile(core_hash_path);
-	if (!fcore_hash)
-		return core_hash;
-
-	int32_t id = 0;
-	MTY_JSONObjGetInt(core_hash, "id", &id);
-
-	int32_t eid = 0;
-	MTY_JSONObjGetInt(fcore_hash, "id", &eid);
-
-	if (id != eid) {
-		MTY_JSONDestroy(&fcore_hash);
-		return core_hash;
-	}
-
-	MTY_JSONDestroy(&core_hash);
-
-	return fcore_hash;
-}
-
-static void main_save_core_hash(const MTY_JSON *core_hash)
-{
-	MTY_JSONWriteFile(main_core_hash_file(), core_hash);
-}
-
-
-// Dynamic core fetching
-
-static void main_push_app_event(const struct app_event *evt, void *opaque);
-static void main_log(const char *msg, void *opaque);
-
-static const char *main_get_platform(void)
-{
-	uint32_t platform = MTY_GetPlatform();
-
-	switch (platform & 0xFF000000) {
-		case MTY_OS_WINDOWS: return "windows";
-		case MTY_OS_MACOS:   return "macosx";
-		case MTY_OS_ANDROID: return "android";
-		case MTY_OS_LINUX:   return "linux";
-		case MTY_OS_WEB:     return "web";
-		case MTY_OS_IOS:     return "ios";
-		case MTY_OS_TVOS:    return "tvos";
-	}
-
-	return "unknown";
-}
-
-static void main_fetch_core(struct main *ctx, const char *core, const char *file, const char *name)
-{
-	snprintf(ctx->core_fetch.name, MTY_PATH_MAX, "%s", name);
-	snprintf(ctx->core_fetch.file, MTY_PATH_MAX, "%s", file);
-	snprintf(ctx->core_fetch.core, CONFIG_CORE_MAX, "%s", core);
-
-	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s/%s/%s",
-		main_get_platform(), MTN_CORE_ARCH, file);
-
-	main_log(MTY_SprintfDL("Fetching '%s'\n", url), NULL);
-
-	MTY_HttpAsyncRequest(&ctx->core_fetch.req, url, "GET", NULL, NULL, 0, NULL, 10000, false);
-}
-
-#if !MTN_DEBUG_CORE
-static const char *main_get_core_hash(const MTY_JSON *j, const char *core)
-{
-	const char *platform = main_get_platform();
-
-	return MTY_JSONObjGetStringPtr(MTY_JSONObjGetItem(MTY_JSONObjGetItem(j, platform), MTN_CORE_ARCH), core);
-}
-#endif
-
-static void main_set_core_hash(MTY_JSON *j, const char *core, const void *data, size_t size)
-{
-	char hash[MTY_SHA256_HEX_MAX] = {0};
-	MTY_CryptoHash(MTY_ALGORITHM_SHA256_HEX, data, size, NULL, 0, hash, MTY_SHA256_HEX_MAX);
-
-	const char *platform = main_get_platform();
-	MTY_JSONObjSetString((MTY_JSON *) MTY_JSONObjGetItem(MTY_JSONObjGetItem(j, platform), MTN_CORE_ARCH), core, hash);
-}
-
-static bool main_check_core_hash(const MTY_JSON *j, const char *core, const char *file)
-{
-	#if !MTN_DEBUG_CORE
-		const char *sha256 = main_get_core_hash(j, core);
-		if (!sha256)
-			return false;
-
-		char hash[MTY_SHA256_HEX_MAX] = {0};
-		if (!MTY_CryptoHashFile(MTY_ALGORITHM_SHA256_HEX, file, NULL, 0, hash, MTY_SHA256_HEX_MAX))
-			return false;
-
-		return !strcmp(sha256, hash);
-
-	#else
-		return true;
-	#endif
-}
-
-static void main_poll_core_fetch(struct main *ctx)
-{
-	uint16_t status = 0;
-	void *so = NULL;
-	size_t size = 0;
-
-	MTY_Async async = MTY_HttpAsyncPoll(ctx->core_fetch.req, &so, &size, &status);
-
-	if (async == MTY_ASYNC_OK) {
-		if (status == 200) {
-			const char *base = main_cores_dir();
-			MTY_Mkdir(base);
-
-			const char *path = MTY_JoinPath(base, ctx->core_fetch.file);
-
-			if (MTY_WriteFile(path, so, size)) {
-				main_set_core_hash(ctx->core_hash, ctx->core_fetch.core, so, size);
-
-				struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
-				snprintf(evt.game, MTY_PATH_MAX, "%s", ctx->core_fetch.name);
-				main_push_app_event(&evt, ctx);
-			}
-		}
-
-		MTY_HttpAsyncClear(&ctx->core_fetch.req);
-	}
-}
-
 
 // Core
+
+static void main_push_app_event(const struct app_event *evt, void *opaque);
 
 static void main_video(const void *buf, CoreColorFormat format,
 	uint32_t width, uint32_t height, size_t pitch, void *opaque)
@@ -660,7 +491,7 @@ static void *main_read_sdata(Core *core, const char *content_name, size_t *size)
 {
 	const char *name = MTY_SprintfDL("%s.srm", content_name);
 
-	return MTY_ReadFile(MTY_JoinPath(main_save_dir(), name), size);
+	return MTY_ReadFile(MTY_JoinPath(config_save_dir(), name), size);
 }
 
 static void main_save_sdata(Core *core, const char *content_name)
@@ -672,7 +503,7 @@ static void main_save_sdata(Core *core, const char *content_name)
 	void *sdata = CoreGetSaveData(core, &size);
 	if (sdata) {
 		const char *name = MTY_SprintfDL("%s.srm", content_name);
-		const char *dir = main_save_dir();
+		const char *dir = config_save_dir();
 
 		MTY_Mkdir(dir);
 		MTY_WriteFile(MTY_JoinPath(dir, name), sdata, size);
@@ -713,15 +544,15 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 	main_unload(ctx);
 
 	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
-	const char *core_path = MTY_JoinPath(main_cores_dir(), cname);
+	const char *core_path = MTY_JoinPath(config_cores_dir(), cname);
 	const char *content_name = MTY_GetFileName(name, false);
 
 	bool file_ok = MTY_FileExists(core_path) &&
-		main_check_core_hash(ctx->core_hash, core, core_path);
+		csync_check_core_hash(ctx->csync, core, core_path);
 
-	// If core is on the system and matches our internal hash, try to use it
+	// If core is on the system and the most recent hash matches, try to use it
 	if (file_ok) {
-		ctx->core = loader_load(core_path, main_system_dir());
+		ctx->core = loader_load(core_path, config_system_dir());
 		if (!ctx->core)
 			return;
 
@@ -750,7 +581,8 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	// Get the core from the internet
 	} else if (fetch_core) {
-		main_fetch_core(ctx, core, cname, name);
+		snprintf(ctx->next_game, MTY_PATH_MAX, "%s", name);
+		csync_fetch_core(ctx->csync, cname);
 	}
 }
 
@@ -782,7 +614,7 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 
 	// The Steam WebView needs to know about the location of the SO
 	const char *fdir = main_ui_is_steam() ? MTY_JoinPath("deps", "steam") :
-		main_tmp_dir();
+		config_tmp_dir();
 
 	MTY_WindowSetWebView(app, window, fdir, MTN_DEBUG_WEBVIEW);
 
@@ -794,7 +626,7 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 
 	// Production location, bootstrap from UI_ZIP if necessary
 	} else {
-		const char *ui = main_ui_dir();
+		const char *ui = config_ui_dir();
 		char *id = MTY_ReadFile(MTY_JoinPath(ui, "id.txt"), NULL);
 
 		if (!id || strcmp(id, UI_ZIP_ID)) {
@@ -1216,7 +1048,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				if (state) {
 					ctx->last_save_index = evt->state_index;
 
-					const char *path = main_state_dir();
+					const char *path = config_state_dir();
 					MTY_Mkdir(path);
 
 					const char *name = MTY_SprintfDL("%s.state%u", ctx->content_name, evt->state_index);
@@ -1233,7 +1065,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				const char *name = MTY_SprintfDL("%s.state%u", ctx->content_name, evt->state_index);
 
 				size_t size = 0;
-				void *state = MTY_ReadFile(MTY_JoinPath(main_state_dir(), name), &size);
+				void *state = MTY_ReadFile(MTY_JoinPath(config_state_dir(), name), &size);
 
 				if (state) {
 					if (CoreSetState(ctx->core, state, size))
@@ -1377,7 +1209,12 @@ static void *main_render_thread(void *opaque)
 		MTY_Time stamp = MTY_GetTime();
 
 		main_poll_app_events(ctx, ctx->rt_q);
-		main_poll_core_fetch(ctx);
+
+		if (csync_poll_fetch_core(ctx->csync)) {
+			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
+			snprintf(evt.game, MTY_PATH_MAX, "%s", ctx->next_game);
+			main_push_app_event(&evt, ctx);
+		}
 
 		bool loaded = CoreGameIsLoaded(ctx->core);
 
@@ -1529,8 +1366,7 @@ int32_t main(int32_t argc, char **argv)
 {
 	setlocale(LC_ALL, ".utf8");
 
-	MTY_HttpAsyncCreate(4);
-	MTY_Mkdir(main_asset_dir());
+	MTY_Mkdir(config_asset_dir());
 
 	// Get the function pointers assigned
 	loader_reset();
@@ -1539,8 +1375,9 @@ int32_t main(int32_t argc, char **argv)
 	ctx.running = true;
 	ctx.core_fps = 60;
 
+	ctx.csync = csync_start();
+
 	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options, &ctx.core_exts);
-	ctx.core_hash = main_load_core_hash();
 
 	if (ctx.cfg.console)
 		MTY_OpenConsole(APP_NAME);
@@ -1590,7 +1427,6 @@ int32_t main(int32_t argc, char **argv)
 	ctx.cfg.window = MTY_WindowGetFrame(ctx.app, ctx.window);
 	ctx.cfg.fullscreen = ctx.cfg.window.type & MTY_WINDOW_FULLSCREEN;
 	main_save_config(&ctx.cfg, ctx.core_options, ctx.core_exts);
-	main_save_core_hash(ctx.core_hash);
 
 	except:
 
@@ -1601,10 +1437,9 @@ int32_t main(int32_t argc, char **argv)
 	MTY_QueueDestroy(&ctx.a_q);
 	MTY_JSONDestroy(&ctx.core_options);
 	MTY_JSONDestroy(&ctx.core_exts);
-	MTY_JSONDestroy(&ctx.core_hash);
 	MTY_JSONDestroy(&ctx.jcfg);
 
-	MTY_HttpAsyncDestroy();
+	csync_stop(&ctx.csync);
 
 	return 0;
 }
