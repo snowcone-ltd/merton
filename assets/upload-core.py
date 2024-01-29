@@ -43,7 +43,12 @@ cores = [
 	'mednafen_pce_libretro',
 ]
 
-def upload_to_s3(platform, arch, file_name, data):
+def upload_core_hash_to_s3(body):
+	s3 = boto3.client('s3')
+	s3.put_object(ACL='public-read', Body=body, Bucket='www.snowcone.ltd',
+		Key='cores/core-hash.json', ContentType='application/json')
+
+def upload_core_to_s3(platform, arch, file_name, data):
 	gz_tmp_name = '%s.gz' % file_name
 	gz_tmp = gzip.open(gz_tmp_name, 'wb')
 	gz_tmp.write(data)
@@ -74,12 +79,7 @@ def output_set_hash(out, mty_plat, arch, core, data):
 	if not out[mty_plat].get(arch):
 		out[mty_plat][arch] = {}
 
-	new_hash = hashlib.sha256(data).hexdigest()
-
-	if new_hash != out[mty_plat][arch].get(core, ''):
-		out['id'] += 1
-
-	out[mty_plat][arch][core] = new_hash
+	out[mty_plat][arch][core] = hashlib.sha256(data).hexdigest()
 
 if __name__ == '__main__':
 	cmd = 'sync'
@@ -91,10 +91,16 @@ if __name__ == '__main__':
 	core_hash_json_path = os.path.join(script_path, 'core-hash.json')
 	core_hash_path = os.path.join(script_path, 'core-hash.h')
 
-	try:
-		out = json.loads(open(core_hash_json_path, 'r').read())
-	except:
-		out = {'id': 0}
+	url = 'https://snowcone.ltd/cores/core-hash.json'
+	r = requests.get(url, headers={'User-Agent': user_agent})
+
+	print(r.status_code, url)
+
+	if r.status_code != 200:
+		print('Failed to fetch core-hash.json')
+		sys.exit()
+
+	out = json.loads(r.text)
 
 	if cmd == 'upload':
 		core = sys.argv[2]
@@ -104,7 +110,7 @@ if __name__ == '__main__':
 
 		data = open(file_name, 'rb').read()
 
-		upload_to_s3(mty_plat, arch, file_name, data)
+		upload_core_to_s3(mty_plat, arch, file_name, data)
 		output_set_hash(out, mty_plat, arch, core, data)
 
 	elif cmd == 'sync':
@@ -125,11 +131,11 @@ if __name__ == '__main__':
 						for name in zinput.namelist():
 							if name == fname:
 								data = zinput.read(name)
-								upload_to_s3(mty_plat, arch, name, data)
+								upload_core_to_s3(mty_plat, arch, name, data)
 								output_set_hash(out, mty_plat, arch, core, data)
 								break
 
-	cloudfront_invalidate('E2ULM8DUHAWNQK')
+	json_str = '%s\n' % json.dumps(out, indent='\t', separators=(',', ': '))
+	upload_core_hash_to_s3(json_str)
 
-	open(core_hash_json_path, 'w').write('%s\n' % json.dumps(out, indent='\t', separators=(',', ': ')))
-	open(core_hash_path, 'w').write('static const char *CORE_HASH = %s;\n' % json.dumps(json.dumps(out)))
+	cloudfront_invalidate('E2ULM8DUHAWNQK')
