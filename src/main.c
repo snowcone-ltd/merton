@@ -1375,12 +1375,12 @@ int32_t main(int32_t argc, char **argv)
 	ctx.running = true;
 	ctx.core_fps = 60;
 
-	ctx.csync = csync_start();
-
 	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options, &ctx.core_exts);
 
 	if (ctx.cfg.console)
 		MTY_OpenConsole(APP_NAME);
+
+	ctx.csync = csync_start();
 
 	MTY_SetTimerResolution(1);
 	MTY_SetLogFunc(main_mty_log_callback, NULL);

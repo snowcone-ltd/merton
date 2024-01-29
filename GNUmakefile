@@ -21,6 +21,9 @@ FLAGS = \
 	-std=c99 \
 	-fPIC
 
+DEFS = \
+	-D_POSIX_C_SOURCE=200112L
+
 ifdef DEBUG
 FLAGS := $(FLAGS) -O0 -g3
 else
@@ -114,7 +117,7 @@ endif
 STATIC_LIBS = \
 	../libmatoya/bin/$(TARGET)/$(ARCH)/libmatoya.a
 
-CFLAGS = $(INCLUDES) $(FLAGS)
+CFLAGS = $(INCLUDES) $(FLAGS) $(DEFS)
 
 all: clean clear zip
 	make objs -j4

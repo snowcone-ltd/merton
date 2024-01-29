@@ -1,6 +1,7 @@
 #include "csync.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "matoya.h"
 #include "config.h"
@@ -11,16 +12,22 @@
 	#define CSYNC_CORE_ARCH "x86_64"
 #endif
 
-#define CSYNC_DEBUG_CORE 1
+#if defined(_WIN32)
+	#include <windows.h>
+#else
+	#include <sys/stat.h>
+#endif
 
 enum csync_cmd_type {
 	CSYNC_CMD_STOP,
 	CSYNC_CMD_FETCH_CORE,
+	CSYNC_CMD_FETCH_CORE_HASH,
 };
 
 struct csync {
 	MTY_Thread *thread;
 	MTY_Queue *q;
+	MTY_Mutex *m;
 
 	MTY_JSON *core_hash;
 
@@ -36,6 +43,19 @@ struct csync_cmd {
 		} fetch_core;
 	};
 };
+
+
+// HTTP helpers
+
+static bool csync_fetch(const char *url, void **response, size_t *size)
+{
+	MTY_Log("Fetching '%s'", url);
+
+	uint16_t status = 0;
+	bool ok = MTY_HttpRequest(url, "GET", NULL, NULL, 0, NULL, 10000, response, size, &status);
+
+	return ok && status == 200;
+}
 
 
 // Fetch core
@@ -62,14 +82,10 @@ static void csync_fetch_core_cmd(struct csync *ctx, struct csync_cmd *cmd)
 	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s/%s/%s",
 		csync_get_platform(), CSYNC_CORE_ARCH, cmd->fetch_core.file);
 
-	MTY_Log("Fetching '%s'", url);
-
 	void *so = NULL;
 	size_t size = 0;
-	uint16_t status = 0;
-	bool http_ok = MTY_HttpRequest(url, "GET", NULL, NULL, 0, NULL, 10000, &so, &size, &status);
 
-	if (http_ok && status == 200) {
+	if (csync_fetch(url, &so, &size)) {
 		const char *base = config_cores_dir();
 		MTY_Mkdir(base);
 
@@ -106,29 +122,74 @@ bool csync_poll_fetch_core(struct csync *ctx)
 
 // Core hash
 
+static void csync_fetch_core_hash_cmd(struct csync *ctx, struct csync_cmd *cmd)
+{
+	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/core-hash.json");
+
+	void *json = NULL;
+	size_t size = 0;
+
+	if (csync_fetch(url, &json, &size)) {
+		MTY_MutexLock(ctx->m);
+
+		ctx->core_hash = MTY_JSONParse(json);
+
+		MTY_MutexUnlock(ctx->m);
+	}
+}
+
+static bool csync_is_symlink(const char *file)
+{
+	#if defined(_WIN32)
+		DWORD attr = GetFileAttributes(MTY_MultiToWideDL(file));
+
+		return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_REPARSE_POINT);
+	#else
+		struct stat s;
+		return lstat(file, &s) == 0 && S_ISLNK(s.st_mode);
+	#endif
+}
+
 bool csync_check_core_hash(struct csync *ctx, const char *core, const char *file)
 {
-	#if !CSYNC_DEBUG_CORE
-		const char *platform = main_get_platform();
-		const char *sha256 = MTY_JSONObjGetStringPtr(MTY_JSONObjGetItem(
-			MTY_JSONObjGetItem(ctx->core_hash, platform), MTN_CORE_ARCH), core);
-
-		if (!sha256)
-			return false;
-
-		char hash[MTY_SHA256_HEX_MAX] = {0};
-		if (!MTY_CryptoHashFile(MTY_ALGORITHM_SHA256_HEX, file, NULL, 0, hash, MTY_SHA256_HEX_MAX))
-			return false;
-
-		return !strcmp(sha256, hash);
-
-	#else
+	if (csync_is_symlink(file)) {
+		MTY_Log("'%s' is a symlink, hash not checked", core);
 		return true;
-	#endif
+	}
+
+	bool r = true;
+
+	MTY_MutexLock(ctx->m);
+
+	if (ctx->core_hash) {
+		const char *platform = csync_get_platform();
+		const char *sha256 = MTY_JSONObjGetStringPtr(MTY_JSONObjGetItem(
+			MTY_JSONObjGetItem(ctx->core_hash, platform), CSYNC_CORE_ARCH), core);
+
+		if (sha256) {
+			char hash[MTY_SHA256_HEX_MAX] = {0};
+			if (MTY_CryptoHashFile(MTY_ALGORITHM_SHA256_HEX, file, NULL, 0, hash, MTY_SHA256_HEX_MAX))
+				r = !strcmp(sha256, hash);
+		}
+	}
+
+	MTY_MutexUnlock(ctx->m);
+
+	return r;
 }
 
 
 // Main
+
+static void csync_simple_command(MTY_Queue *q, enum csync_cmd_type type)
+{
+	struct csync_cmd *cmd = MTY_QueueGetInputBuffer(q);
+
+	if (cmd) {
+		cmd->type = type;
+		MTY_QueuePush(q, sizeof(struct csync_cmd));
+	}
+}
 
 static void *csync_thread(void *opaque)
 {
@@ -146,6 +207,9 @@ static void *csync_thread(void *opaque)
 			case CSYNC_CMD_FETCH_CORE:
 				csync_fetch_core_cmd(ctx, cmd);
 				break;
+			case CSYNC_CMD_FETCH_CORE_HASH:
+				csync_fetch_core_hash_cmd(ctx, cmd);
+				break;
 			default:
 				break;
 		}
@@ -160,10 +224,11 @@ struct csync *csync_start(void)
 {
 	struct csync *ctx = MTY_Alloc(1, sizeof(struct csync));
 
-	ctx->core_hash = MTY_JSONObjCreate();
-
 	ctx->thread = MTY_ThreadCreate(csync_thread, ctx);
 	ctx->q = MTY_QueueCreate(20, sizeof(struct csync_cmd));
+	ctx->m = MTY_MutexCreate();
+
+	csync_simple_command(ctx->q, CSYNC_CMD_FETCH_CORE_HASH);
 
 	return ctx;
 }
@@ -175,16 +240,11 @@ void csync_stop(struct csync **csync)
 
 	struct csync *ctx = *csync;
 
-	if (ctx->q) {
-		struct csync_cmd *cmd = MTY_QueueGetInputBuffer(ctx->q);
-
-		if (cmd) {
-			cmd->type = CSYNC_CMD_STOP;
-			MTY_QueuePush(ctx->q, sizeof(struct csync_cmd));
-		}
-	}
+	if (ctx->q)
+		csync_simple_command(ctx->q, CSYNC_CMD_STOP);
 
 	MTY_ThreadDestroy(&ctx->thread);
+	MTY_MutexDestroy(&ctx->m);
 	MTY_QueueDestroy(&ctx->q);
 
 	MTY_JSONDestroy(&ctx->core_hash);
