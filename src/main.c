@@ -1323,14 +1323,10 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			const MTY_ControllerEvent *c = &evt->controller;
 
 			if (!ctx->ui_visible) {
-
-				#define REV_AXIS(axis) \
-					((axis) == INT16_MAX ? INT16_MIN : (axis) == INT16_MIN ? INT16_MAX : -(axis))
-
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_B]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_A]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_Y]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_X]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_A]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_B]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_X]);
+				CoreSetButton(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_Y]);
 				CoreSetButton(ctx->core, 0, CORE_BUTTON_SELECT, c->buttons[MTY_CBUTTON_BACK]);
 				CoreSetButton(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
 				CoreSetButton(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
@@ -1345,9 +1341,9 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				CoreSetButton(ctx->core, 0, CORE_BUTTON_R3, c->buttons[MTY_CBUTTON_RIGHT_THUMB]);
 
 				CoreSetAxis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
-				CoreSetAxis(ctx->core, 0, CORE_AXIS_LY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_LY].value));
+				CoreSetAxis(ctx->core, 0, CORE_AXIS_LY, c->axes[MTY_CAXIS_THUMB_LY].value);
 				CoreSetAxis(ctx->core, 0, CORE_AXIS_RX, c->axes[MTY_CAXIS_THUMB_RX].value);
-				CoreSetAxis(ctx->core, 0, CORE_AXIS_RY, REV_AXIS(c->axes[MTY_CAXIS_THUMB_RY].value));
+				CoreSetAxis(ctx->core, 0, CORE_AXIS_RY, c->axes[MTY_CAXIS_THUMB_RY].value);
 
 			} else {
 				main_post_ui_controller(ctx->app, ctx->window, c);
