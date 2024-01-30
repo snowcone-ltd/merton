@@ -1064,6 +1064,9 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 
 					free(state);
 				}
+
+				struct app_event sevt = {.type = APP_EVENT_HIDE_MENU};
+				main_push_app_event(&sevt, ctx);
 				break;
 			}
 			case APP_EVENT_LOAD_STATE: {
@@ -1081,6 +1084,9 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 
 					MTY_Free(state);
 				}
+
+				struct app_event sevt = {.type = APP_EVENT_HIDE_MENU};
+				main_push_app_event(&sevt, ctx);
 				break;
 			}
 			case APP_EVENT_SET_DISK:
@@ -1224,17 +1230,20 @@ static void *main_render_thread(void *opaque)
 
 	main_refresh_gfx(ctx, ctx->cfg.gfx, ctx->cfg.vsync);
 
-	while (ctx->running) {
-		MTY_Time stamp = MTY_GetTime();
+	MTY_Time stamp = MTY_GetTime();
 
+	while (ctx->running) {
+		// Poll all events on the render thread
 		main_poll_app_events(ctx, ctx->rt_q);
 
+		// Poll a core fetch, then run game
 		if (csync_poll_fetch_core(ctx->csync)) {
 			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
 			snprintf(evt.game, MTY_PATH_MAX, "%s", ctx->next_game);
 			main_push_app_event(&evt, ctx);
 		}
 
+		// Run video
 		bool loaded = CoreGameIsLoaded(ctx->core);
 
 		bool active = !ctx->paused &&
@@ -1244,21 +1253,23 @@ static void *main_render_thread(void *opaque)
 		if (active && loaded) {
 			CoreRun(ctx->core);
 
-		} else {
-			if (loaded) {
-				main_video(NULL, CORE_COLOR_FORMAT_UNKNOWN, 0, 0, 0, ctx);
+		} else if (loaded) {
+			main_video(NULL, CORE_COLOR_FORMAT_UNKNOWN, 0, 0, 0, ctx);
 
-			} else {
-				MTY_WindowClear(ctx->app, ctx->window, 0, 0, 0, 1);
-			}
+		} else {
+			MTY_WindowClear(ctx->app, ctx->window, 0, 0, 0, 1);
 		}
 
+		// Frame timing when vsync is off
+		double rem = 1000.0 / CoreGetFrameRate(ctx->core) - MTY_TimeDiff(stamp, MTY_GetTime());
+
+		if (ctx->cfg.vsync == 0 && rem > 0)
+			MTY_PreciseSleep(rem, 4.0);
+
+		stamp = MTY_GetTime();
+
+		// Present the frame
 		MTY_WindowPresent(ctx->app, ctx->window);
-
-		double diff = MTY_TimeDiff(stamp, MTY_GetTime());
-
-		if (ctx->cfg.vsync == 0)
-			MTY_PreciseSleep(1000.0 / CoreGetFrameRate(ctx->core) - diff, 4.0);
 	}
 
 	MTY_WindowSetGFX(ctx->app, ctx->window, MTY_GFX_NONE, false);
