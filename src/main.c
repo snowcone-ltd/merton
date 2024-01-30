@@ -996,6 +996,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 					evt->cfg.vsync != ctx->cfg.vsync)
 				{
 					ctx->audio_init = false;
+					ctx->resampler_init = false;
 				}
 
 				ctx->cfg = evt->cfg;
@@ -1103,95 +1104,107 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 
 // Audio thread
 
+struct at_state {
+	uint32_t sample_rate;
+	uint32_t target_rate;
+	bool correct_high;
+	bool correct_low;
+};
+
+static bool main_audio_init(uint32_t rate, uint32_t buffer, MTY_Resampler **rsp, MTY_Audio **audio)
+{
+	MTY_ResamplerDestroy(rsp);
+	MTY_AudioDestroy(audio);
+
+	*audio = MTY_AudioCreate(rate, buffer, buffer * 2, 2, NULL, false);
+	if (!audio)
+		return false;
+
+	*rsp = MTY_ResamplerCreate();
+
+	return true;
+}
+
+static void main_audio_packet(struct main *ctx, struct at_state *s, MTY_Resampler *rsp,
+	MTY_Audio *audio, const struct audio_packet *pkt)
+{
+	// TODO Instead of dividing by 60.0, it would be better to know the actual refresh rate
+	uint32_t scaled_rate = !ctx->cfg.vsync ? ctx->cfg.playback_rate :
+		lrint((ctx->core_fps / 60.0) * ctx->cfg.playback_rate);
+
+	// Reset resampler on sample rate changes
+	if (s->sample_rate != pkt->sample_rate || !ctx->resampler_init) {
+		MTY_ResamplerReset(rsp);
+		MTY_AudioReset(audio);
+
+		s->sample_rate = pkt->sample_rate;
+		s->target_rate = scaled_rate;
+		s->correct_high = s->correct_low = false;
+
+		ctx->resampler_init = true;
+	}
+
+	// Submit the audio
+	if (!ctx->cfg.mute) {
+		size_t out_frames = 0;
+		const int16_t *rsp_buf = MTY_Resample(rsp, (float) s->target_rate / s->sample_rate,
+			pkt->data, pkt->frames, &out_frames);
+
+		MTY_AudioQueue(audio, rsp_buf, (uint32_t) out_frames);
+	}
+
+	// Correct buffer drift by tweaking the output sample rate
+	uint32_t low = lrint(ctx->cfg.audio_buffer / 1.5);
+	uint32_t mid = ctx->cfg.audio_buffer;
+	uint32_t high = ctx->cfg.audio_buffer + (ctx->cfg.audio_buffer - low);
+	uint32_t queued = MTY_AudioGetQueued(audio);
+
+	if (queued <= mid)
+		s->correct_high = false;
+
+	if (queued >= mid)
+		s->correct_low = false;
+
+	if (!s->correct_high && !s->correct_low) {
+		if (queued >= high) {
+			s->correct_high = true;
+			s->target_rate = lrint(scaled_rate * 0.993);
+
+		} else if (queued <= low) {
+			s->correct_low = true;
+			s->target_rate = lrint(scaled_rate * 1.007);
+
+		} else {
+			s->target_rate = scaled_rate;
+		}
+	}
+}
+
 static void *main_audio_thread(void *opaque)
 {
 	struct main *ctx = opaque;
 
-	uint32_t pcm_buffer = ctx->cfg.audio_buffer;
-	uint32_t playback_rate = ctx->cfg.playback_rate;
-
 	MTY_Audio *audio = NULL;
 	MTY_Resampler *rsp = NULL;
 
-	uint32_t sample_rate = 0;
-	uint32_t target_rate = 0;
-	bool correct_high = false;
-	bool correct_low = false;
+	struct at_state s = {0};
 
 	while (ctx->running) {
 		// Reinit audio & resampler on the fly
 		if (!ctx->audio_init) {
-			pcm_buffer = ctx->cfg.audio_buffer;
-			playback_rate = ctx->cfg.playback_rate;
-			sample_rate = 0;
+			ctx->audio_init = main_audio_init(ctx->cfg.playback_rate, ctx->cfg.audio_buffer,
+				&rsp, &audio);
 
-			if (rsp)
-				MTY_ResamplerDestroy(&rsp);
-
-			if (audio)
-				MTY_AudioDestroy(&audio);
-
-			audio = MTY_AudioCreate(playback_rate, pcm_buffer, pcm_buffer * 2, 2, NULL, false);
-			if (!audio)
+			if (!ctx->audio_init)
 				break;
-
-			if (!rsp)
-				rsp = MTY_ResamplerCreate();
-
-			ctx->audio_init = true;
 		}
 
 		// Dequeue audio data from the core
-		for (struct audio_packet *pkt = NULL; MTY_QueueGetOutputBuffer(ctx->a_q, 10, (void **) &pkt, NULL);) {
-			// TODO Instead of dividing by 60.0, it would be better to know the actual refresh rate
-			uint32_t scaled_rate = !ctx->cfg.vsync ? playback_rate : lrint((ctx->core_fps / 60.0) * playback_rate);
+		for (struct audio_packet *pkt = NULL;;) {
+			if (!MTY_QueueGetOutputBuffer(ctx->a_q, 10, (void **) &pkt, NULL))
+				break;
 
-			// Reset resampler on sample rate changes
-			if (sample_rate != pkt->sample_rate || !ctx->resampler_init) {
-				MTY_ResamplerReset(rsp);
-
-				sample_rate = pkt->sample_rate;
-				target_rate = scaled_rate;
-				correct_high = correct_low = false;
-
-				ctx->resampler_init = true;
-			}
-
-			// Submit the audio
-			if (!ctx->cfg.mute) {
-				size_t out_frames = 0;
-				const int16_t *rsp_buf = MTY_Resample(rsp, (float) target_rate / sample_rate,
-					pkt->data, pkt->frames, &out_frames);
-
-				MTY_AudioQueue(audio, rsp_buf, (uint32_t) out_frames);
-			}
-
-			// Correct buffer drift by tweaking the output sample rate
-			uint32_t low = lrint(pcm_buffer / 1.5);
-			uint32_t mid = pcm_buffer;
-			uint32_t high = pcm_buffer + (pcm_buffer - low);
-			uint32_t queued = MTY_AudioGetQueued(audio);
-
-			if (queued <= mid)
-				correct_high = false;
-
-			if (queued >= mid)
-				correct_low = false;
-
-			if (!correct_high && !correct_low) {
-				if (queued >= high) {
-					correct_high = true;
-					target_rate = lrint(scaled_rate * 0.994);
-
-				} else if (queued <= low) {
-					correct_low = true;
-					target_rate = lrint(scaled_rate * 1.006);
-
-				} else {
-					target_rate = lrint(scaled_rate);
-				}
-			}
-
+			main_audio_packet(ctx, &s, rsp, audio, pkt);
 			MTY_QueuePop(ctx->a_q);
 		}
 	}
