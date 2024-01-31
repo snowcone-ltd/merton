@@ -97,6 +97,7 @@ const MENU_ITEMS = [
 		{etype: 'separator'},
 		{name: 'vsync', type: 'cfg', etype: 'dropdown', label: 'VSync', opts: [
 			{label: 'Off', value: 0},
+			{label: 'Auto', value: -1},
 			{label: '1.00 (60 Hz)', value: 100},
 			{label: '1.25 (75 Hz)', value: 125},
 			{label: '2.00 (120 Hz)', value: 200},

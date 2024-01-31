@@ -69,7 +69,7 @@ struct app_event {
 	// These should be unioned
 	struct config cfg;
 	MTY_GFX gfx;
-	uint32_t vsync;
+	int32_t vsync;
 	char title[APP_TITLE_MAX];
 	char game[MTY_PATH_MAX];
 	struct {
@@ -168,7 +168,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_UINT(playback_rate, 48000);
 	CFG_GET_UINT(scanlines, 70);
 	CFG_GET_UINT(sharpen, 0);
-	CFG_GET_UINT(vsync, 0);
+	CFG_GET_INT(vsync, 0);
 	CFG_GET_UINT(window.type, MTY_WINDOW_NORMAL);
 	CFG_GET_UINT(window.size.w, 0);
 	CFG_GET_UINT(window.size.h, 0);
@@ -961,12 +961,15 @@ static void main_push_app_event(const struct app_event *evt, void *opaque)
 	}
 }
 
-static void main_refresh_gfx(struct main *ctx, MTY_GFX gfx, uint32_t vsync)
+static void main_refresh_gfx(struct main *ctx, MTY_GFX gfx, int32_t vsync)
 {
-	MTY_WindowSetGFX(ctx->app, ctx->window, gfx, vsync > 0);
+	MTY_WindowSetGFX(ctx->app, ctx->window, gfx, vsync != 0);
 
-	double rr = vsync > 0 ? MTY_WindowGetRefreshRate(ctx->app, ctx->window) : 0;
-	MTY_WindowSetSyncInterval(ctx->app, ctx->window, lrint((rr / 60.0) * 100.0));
+	// Auto setting
+	if (vsync < 0)
+		vsync = lrint((MTY_WindowGetRefreshRate(ctx->app, ctx->window) / 60.0) * 100.0);
+
+	MTY_WindowSetSyncInterval(ctx->app, ctx->window, vsync);
 }
 
 static void main_poll_app_events(struct main *ctx, MTY_Queue *q)

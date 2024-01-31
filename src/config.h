@@ -45,7 +45,7 @@ struct config {
 	uint32_t playback_rate;
 	uint32_t scanlines;
 	uint32_t sharpen;
-	uint32_t vsync;
+	int32_t vsync;
 
 	MTY_GFX gfx;
 	MTY_Filter filter;
