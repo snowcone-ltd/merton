@@ -144,6 +144,14 @@ function NAV_Input(input) {
 
 // Controllers
 
+let BUTTON_TO;
+let BUTTON_REPEAT;
+
+function clearTimers() {
+	clearTimeout(BUTTON_TO);
+	clearInterval(BUTTON_REPEAT);
+}
+
 function inputFirst(json, input) {
 	for (let x = 0; x < input.length; x++) {
 		if (!NAV_CONTROLLER[input[x]] && json[input[x]]) {
@@ -153,23 +161,38 @@ function inputFirst(json, input) {
 	}
 }
 
-function NAV_Controller(json) {
-	let input = ['u', 'd', 'l', 'r'];
-	let noButtons = true;
-
-	// Don't allow directional input if any other directions are held down already
+function noInput(input) {
 	for (let x = 0; x < input.length; x++) {
-		if (NAV_CONTROLLER[input[x]]) {
-			noButtons = false;
-			break;
-		}
+		if (NAV_CONTROLLER[input[x]])
+			return false;
 	}
 
-	// Move on button press
-	if (noButtons)
+	return true;
+}
+
+function NAV_Controller(json) {
+	let input = ['u', 'd', 'l', 'r'];
+
+	// Don't allow directional input if any other directions are held down already
+	if (noInput(input)) {
+		clearTimers();
+
 		inputFirst(json, input);
 
-	// Other uttons
+		BUTTON_TO = setTimeout(() => {
+			BUTTON_REPEAT = setInterval(() => {
+				if (noInput(input))
+					clearTimers();
+
+				for (let x = 0; x < input.length; x++) {
+					if (NAV_CONTROLLER[input[x]])
+						NAV_Input(input[x]);
+				}
+			}, 40);
+		}, 400)
+	}
+
+	// Other buttons
 	inputFirst(json, ['a', 'b', 'ls', 'rs']);
 
 	NAV_CONTROLLER = json;

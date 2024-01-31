@@ -178,14 +178,14 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 
 	CFG_GET_BOOL(fullscreen, cfg.window.type & MTY_WINDOW_FULLSCREEN);
 
-	CFG_GET_STR(core.atari2600, CONFIG_CORE_MAX, "stella_libretro");
+	CFG_GET_STR(core.atari2600, CONFIG_CORE_MAX, "stella");
 	CFG_GET_STR(core.gameboy, CONFIG_CORE_MAX, "mesen2");
 	CFG_GET_STR(core.gba, CONFIG_CORE_MAX, "mgba");
 	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis-plus-gx");
 	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "mesen2");
 	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus");
 	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "mesen2");
-	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "swanstation_libretro");
+	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "duckstation");
 	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen2");
 	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mesen2");
 
@@ -686,14 +686,20 @@ static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *dir)
 
 static void main_post_ui_controller(MTY_App *app, MTY_Window window, const MTY_ControllerEvent *c)
 {
+	int16_t athresh = 20000;
+
 	MTY_JSON *msg = MTY_JSONObjCreate();
 	MTY_JSONObjSetString(msg, "type", "controller");
 	MTY_JSONObjSetBool(msg, "b", c->buttons[MTY_CBUTTON_B]);
 	MTY_JSONObjSetBool(msg, "a", c->buttons[MTY_CBUTTON_A]);
-	MTY_JSONObjSetBool(msg, "u", c->buttons[MTY_CBUTTON_DPAD_UP]);
-	MTY_JSONObjSetBool(msg, "d", c->buttons[MTY_CBUTTON_DPAD_DOWN]);
-	MTY_JSONObjSetBool(msg, "l", c->buttons[MTY_CBUTTON_DPAD_LEFT]);
-	MTY_JSONObjSetBool(msg, "r", c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
+	MTY_JSONObjSetBool(msg, "u", c->buttons[MTY_CBUTTON_DPAD_UP] ||
+		c->axes[MTY_CAXIS_THUMB_LY].value > athresh);
+	MTY_JSONObjSetBool(msg, "d", c->buttons[MTY_CBUTTON_DPAD_DOWN] ||
+		c->axes[MTY_CAXIS_THUMB_LY].value < -athresh);
+	MTY_JSONObjSetBool(msg, "l", c->buttons[MTY_CBUTTON_DPAD_LEFT] ||
+		c->axes[MTY_CAXIS_THUMB_LX].value < -athresh);
+	MTY_JSONObjSetBool(msg, "r", c->buttons[MTY_CBUTTON_DPAD_RIGHT] ||
+		c->axes[MTY_CAXIS_THUMB_LX].value > athresh);
 	MTY_JSONObjSetBool(msg, "ls", c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
 	MTY_JSONObjSetBool(msg, "rs", c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
 

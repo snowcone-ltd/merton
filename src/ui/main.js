@@ -387,8 +387,7 @@ function Checkbox(props) {
 
 	let onChange = (evt) => {
 		handleEvent({name: mitem.name, type: mitem.type, value: evt.target.checked});
-		this.props.setValue(mitem.type == 'core_opts' ? 'cfg' : mitem.type, mitem.name, evt.target.checked);
-		props.setValue(mitem.type, mitem.name, evt.target.checked);
+		props.setValue(mitem.type == 'core_opts' ? 'cfg' : mitem.type, mitem.name, evt.target.checked);
 	};
 
 	let onClick = (evt) => {
