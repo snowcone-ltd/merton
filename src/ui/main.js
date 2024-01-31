@@ -54,11 +54,6 @@ const MENU_ITEMS = [
 		{name: 'reload', type: 'action', etype: 'label', label: 'Reload ROM', needsRunning: true},
 		{name: 'reset', type: 'nstate', etype: 'label', label: 'Reset', needsRunning: true},
 		{etype: 'separator'},
-		{name: 'menu_pause', type: 'cfg', etype: 'checkbox', label: 'Menu Pause'},
-		{name: 'bg_pause', type: 'cfg', etype: 'checkbox', label: 'Background Pause'},
-		{etype: 'separator'},
-		{name: 'insert-disc', type: 'discs', etype: 'label', label: 'Insert Disc', needsRunning: true, needsDisks: true},
-		{etype: 'separator'},
 		{name: 'save-state', type: 'nstate', etype: 'dropdown', label: 'Save State', needsRunning: true, opts: [
 			{label: 'Select Slot', value: '---'},
 			{label: '1', value: 1},
@@ -81,6 +76,12 @@ const MENU_ITEMS = [
 			{label: '7', value: 7},
 			{label: '8', value: 8},
 		]},
+		{etype: 'separator'},
+		{name: 'menu_pause', type: 'cfg', etype: 'checkbox', label: 'Menu Pause'},
+		{name: 'bg_pause', type: 'cfg', etype: 'checkbox', label: 'Background Pause'},
+		{etype: 'separator'},
+		{name: 'insert-disc', type: 'discs', etype: 'label', label: 'Insert Disc', needsRunning: true, needsDisks: true},
+		{name: 'add-bios', type: 'bios', etype: 'label', label: 'Add BIOS'},
 		{etype: 'separator'},
 		{name: 'quit', type: 'action', etype: 'label', label: 'Quit'},
 	]},
@@ -168,6 +169,7 @@ function setLocal(key, val) {
 function handleEvent(evt) {
 	switch (evt.type) {
 		// Handled internally
+		case 'bios':
 		case 'discs':
 		case 'files':
 			handleEvent({type: 'action', name: evt.type, basedir: getLocal('fdir', '')});
@@ -605,8 +607,9 @@ class LoadROMModal extends React.Component {
 		let files = this.props.appState.files.list;
 		let dir = this.props.appState.files.path;
 		let type = this.props.appState.files.type;
-		let actionType = type == 'files' ? 'load-rom' : 'insert-disc';
-		let title = type == 'files' ? 'Load ROM' : "Insert Disc";
+		let actionType = type == 'files' ? 'load-rom' : type == 'discs' ? 'insert-disc' :
+			'add-bios';
+		let title = type == 'files' ? 'Load ROM' : type == 'discs' ? "Insert Disc" : 'Add BIOS';
 
 		setLocal('fdir', dir);
 
@@ -812,6 +815,7 @@ class Main extends React.Component {
 				case 'controller':
 					NAV_Controller(json);
 					break;
+				case 'bios':
 				case 'discs':
 				case 'files':
 					this.setState({files: json});

@@ -86,6 +86,7 @@ struct main {
 
 	char *game_path;
 	char *content_name;
+	char *cmsg;
 	CoreSystem system;
 	MTY_App *app;
 	MTY_JSON *jcfg;
@@ -634,6 +635,8 @@ static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type
 				MTY_Strcat(filter, 512, exts);
 			}
 		}
+	} else if (!strcmp(type, "bios"))  {
+		snprintf(filter, 512, ".bin|.rom|.pce");
 	}
 
 	MTY_FileList *list = MTY_GetFileList(dir, filter);
@@ -651,7 +654,7 @@ static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type
 
 			// .bin files greater than 128KB could not be atari2600 games
 			const char *ext = strrchr(desc->name, '.');
-			if (ext && !strcmp(ext, ".bin") && desc->size > 128 * 1024)
+			if (ext && !strcmp(type, "files") && !strcmp(ext, ".bin") && desc->size > 128 * 1024)
 				continue;
 
 			MTY_JSON *fobj = MTY_JSONObjCreate();
@@ -671,7 +674,8 @@ static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type
 	}
 }
 
-static void main_post_ui_controller(MTY_App *app, MTY_Window window, const MTY_ControllerEvent *c)
+static void main_post_ui_controller(struct main *ctx, MTY_App *app, MTY_Window window,
+	const MTY_ControllerEvent *c)
 {
 	int16_t athresh = 20000;
 
@@ -691,9 +695,17 @@ static void main_post_ui_controller(MTY_App *app, MTY_Window window, const MTY_C
 	MTY_JSONObjSetBool(msg, "rs", c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
 
 	char *jmsg = MTY_JSONSerialize(msg);
-	MTY_WebViewSendText(app, window, jmsg);
 
-	MTY_Free(jmsg);
+	if (!ctx->cmsg || strcmp(ctx->cmsg, jmsg)) {
+		MTY_WebViewSendText(app, window, jmsg);
+
+		MTY_Free(ctx->cmsg);
+		ctx->cmsg = jmsg;
+
+	} else {
+		MTY_Free(jmsg);
+	}
+
 	MTY_JSONDestroy(&msg);
 }
 
@@ -785,7 +797,9 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 		if (!MTY_JSONObjGetString(j, "name", jbuf, JBUF_SIZE))
 			goto except;
 
-		if (!strcmp(jbuf, "load-rom") || !strcmp(jbuf, "insert-disc")) {
+		if (!strcmp(jbuf, "load-rom") || !strcmp(jbuf, "insert-disc") ||
+			!strcmp(jbuf, "add-bios"))
+		{
 			char basedir[MTY_PATH_MAX] = {0};
 			if (!MTY_JSONObjGetString(j, "basedir", basedir, MTY_PATH_MAX))
 				goto except;
@@ -801,8 +815,12 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 				evt.type = APP_EVENT_LOAD_GAME;
 				evt.fetch_core = true;
 
-			} else {
+			} else if (!strcmp(jbuf, "insert-disc")) {
 				evt.type = APP_EVENT_SET_DISK;
+
+			} else {
+				MTY_Mkdir(config_system_dir());
+				MTY_CopyFile(evt.file, MTY_JoinPath(config_system_dir(), fname));
 			}
 
 			main_push_app_event(&evt, ctx);
@@ -865,7 +883,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 
 			main_push_app_event(&evt, ctx);
 
-		} else if (!strcmp(jbuf, "files") || !strcmp(jbuf, "discs")) {
+		} else if (!strcmp(jbuf, "files") || !strcmp(jbuf, "discs") || !strcmp(jbuf, "bios")) {
 			char basedir[MTY_PATH_MAX] = {0};
 			MTY_JSONObjGetString(j, "basedir", basedir, MTY_PATH_MAX);
 
@@ -1341,7 +1359,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				CoreSetAxis(ctx->core, 0, CORE_AXIS_RY, c->axes[MTY_CAXIS_THUMB_RY].value);
 
 			} else {
-				main_post_ui_controller(ctx->app, ctx->window, c);
+				main_post_ui_controller(ctx, ctx->app, ctx->window, c);
 			}
 
 			bool pressed = c->buttons[MTY_CBUTTON_RIGHT_TRIGGER];
@@ -1451,6 +1469,7 @@ int32_t main(int32_t argc, char **argv)
 
 	except:
 
+	MTY_Free(ctx.cmsg);
 	MTY_RevertTimerResolution(1);
 	MTY_AppDestroy(&ctx.app);
 	MTY_QueueDestroy(&ctx.rt_q);
