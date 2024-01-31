@@ -176,7 +176,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_UINT(playback_rate, 48000);
 	CFG_GET_UINT(scanlines, 70);
 	CFG_GET_UINT(sharpen, 0);
-	CFG_GET_INT(vsync, 0);
+	CFG_GET_INT(vsync, -1); // Auto
 	CFG_GET_UINT(window.type, MTY_WINDOW_NORMAL);
 	CFG_GET_UINT(window.size.w, 0);
 	CFG_GET_UINT(window.size.h, 0);
@@ -1130,7 +1130,7 @@ static void main_audio_packet(struct main *ctx, struct at_state *s, MTY_Resample
 	MTY_Audio *audio, const struct audio_packet *pkt)
 {
 	// TODO Instead of dividing by 60.0, it would be better to know the actual refresh rate
-	uint32_t scaled_rate = !ctx->cfg.vsync ? ctx->cfg.playback_rate :
+	uint32_t scaled_rate = ctx->cfg.vsync == 0 ? ctx->cfg.playback_rate :
 		lrint((ctx->core_fps / 60.0) * ctx->cfg.playback_rate);
 
 	// Reset resampler on sample rate changes
