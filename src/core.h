@@ -75,13 +75,18 @@ typedef enum {
 } CoreColorFormat;
 
 typedef enum {
-	CORE_SYSTEM_UNKNOWN = 0,
-	CORE_SYSTEM_NES     = 1, // Nintendo Entertainment System
-	CORE_SYSTEM_SMS     = 2, // Sega Master System
-	CORE_SYSTEM_TG16    = 3, // TurboGrafx-16 (PC Engine)
-	CORE_SYSTEM_GAMEBOY = 4,
-	CORE_SYSTEM_SNES    = 5, // Super Nintendo Entertainment System
-	CORE_SYSTEM_N64     = 6, // Nintendo 64
+	CORE_SYSTEM_UNKNOWN   = 0,
+	CORE_SYSTEM_ATARI2600 = 1,
+	CORE_SYSTEM_NES       = 2,  // Nintendo Entertainment System
+	CORE_SYSTEM_SMS       = 3,  // Sega Master System
+	CORE_SYSTEM_TG16      = 4,  // TurboGrafx-16 (PC Engine)
+	CORE_SYSTEM_GENESIS   = 5,
+	CORE_SYSTEM_GAMEBOY   = 6,
+	CORE_SYSTEM_SNES      = 7,  // Super Nintendo Entertainment System
+	CORE_SYSTEM_PS        = 8,  // PlayStation
+	CORE_SYSTEM_N64       = 9,  // Nintendo 64
+	CORE_SYSTEM_GBA       = 10,
+	CORE_SYSTEM_MAX,
 } CoreSystem;
 
 typedef enum {

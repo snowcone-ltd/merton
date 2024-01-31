@@ -90,7 +90,6 @@ struct main {
 	MTY_App *app;
 	MTY_JSON *jcfg;
 	MTY_JSON *core_options;
-	MTY_JSON *core_exts;
 	MTY_Window window;
 	MTY_Queue *rt_q;
 	MTY_Queue *mt_q;
@@ -116,6 +115,18 @@ struct main {
 
 // Maps
 
+static const char *CORE_EXTS[CORE_SYSTEM_MAX] = {
+	[CORE_SYSTEM_ATARI2600] = ".a26|.bin",
+	[CORE_SYSTEM_GAMEBOY]   = ".gb|.gbc",
+	[CORE_SYSTEM_GBA]       = ".gba",
+	[CORE_SYSTEM_GENESIS]   = ".gen|.md|.smd",
+	[CORE_SYSTEM_SMS]       = ".sms|.gg",
+	[CORE_SYSTEM_N64]       = ".n64|.v64|.z64",
+	[CORE_SYSTEM_NES]       = ".nes|.fds|.qd|.unf|.unif",
+	[CORE_SYSTEM_SNES]      = ".smc|.sfc|.bs",
+	[CORE_SYSTEM_TG16]      = ".pce",
+};
+
 static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 	[MTY_KEY_SEMICOLON] = CORE_BUTTON_A,
 	[MTY_KEY_L]         = CORE_BUTTON_B,
@@ -134,15 +145,12 @@ static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 
 // Config
 
-static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_options, MTY_JSON **core_exts)
+static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_options)
 {
 	struct config cfg = {0};
 
 	if (*core_options)
 		MTY_JSONDestroy(core_options);
-
-	if (*core_exts)
-		MTY_JSONDestroy(core_exts);
 
 	#define CFG_GET_BOOL(name, def) \
 		if (!MTY_JSONObjGetBool(jcfg, #name, &cfg.name)) cfg.name = def
@@ -178,42 +186,24 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 
 	CFG_GET_BOOL(fullscreen, cfg.window.type & MTY_WINDOW_FULLSCREEN);
 
-	CFG_GET_STR(core.atari2600, CONFIG_CORE_MAX, "stella");
-	CFG_GET_STR(core.gameboy, CONFIG_CORE_MAX, "mesen2");
-	CFG_GET_STR(core.gba, CONFIG_CORE_MAX, "mgba");
-	CFG_GET_STR(core.genesis, CONFIG_CORE_MAX, "genesis-plus-gx");
-	CFG_GET_STR(core.ms, CONFIG_CORE_MAX, "mesen2");
-	CFG_GET_STR(core.n64, CONFIG_CORE_MAX, "mupen64plus");
-	CFG_GET_STR(core.nes, CONFIG_CORE_MAX, "mesen2");
-	CFG_GET_STR(core.ps, CONFIG_CORE_MAX, "duckstation");
-	CFG_GET_STR(core.snes, CONFIG_CORE_MAX, "mesen2");
-	CFG_GET_STR(core.tg16, CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core[CORE_SYSTEM_ATARI2600], CONFIG_CORE_MAX, "stella");
+	CFG_GET_STR(core[CORE_SYSTEM_NES], CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core[CORE_SYSTEM_SMS], CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core[CORE_SYSTEM_TG16], CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core[CORE_SYSTEM_GENESIS], CONFIG_CORE_MAX, "genesis-plus-gx");
+	CFG_GET_STR(core[CORE_SYSTEM_GAMEBOY], CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core[CORE_SYSTEM_SNES], CONFIG_CORE_MAX, "mesen2");
+	CFG_GET_STR(core[CORE_SYSTEM_PS], CONFIG_CORE_MAX, "duckstation");
+	CFG_GET_STR(core[CORE_SYSTEM_N64], CONFIG_CORE_MAX, "mupen64plus");
+	CFG_GET_STR(core[CORE_SYSTEM_GBA], CONFIG_CORE_MAX, "mgba");
 
 	const MTY_JSON *obj = MTY_JSONObjGetItem(jcfg, "core_options");
 	*core_options = obj ? MTY_JSONDuplicate(obj) : MTY_JSONObjCreate();
 
-	obj = MTY_JSONObjGetItem(jcfg, "core_exts");
-	if (obj) {
-		*core_exts = MTY_JSONDuplicate(obj);
-
-	} else {
-		*core_exts = MTY_JSONObjCreate();
-		MTY_JSONObjSetString(*core_exts, "atari2600", "a26");
-		MTY_JSONObjSetString(*core_exts, "gameboy", "gb|gbc");
-		MTY_JSONObjSetString(*core_exts, "gba", "gba");
-		MTY_JSONObjSetString(*core_exts, "genesis", "gen|md|smd");
-		MTY_JSONObjSetString(*core_exts, "ms", "sms|gg");
-		MTY_JSONObjSetString(*core_exts, "n64", "n64|v64|z64");
-		MTY_JSONObjSetString(*core_exts, "nes", "nes|fds|qd|unf|unif");
-		MTY_JSONObjSetString(*core_exts, "ps", "");
-		MTY_JSONObjSetString(*core_exts, "snes", "smc|sfc|bs");
-		MTY_JSONObjSetString(*core_exts, "tg16", "pce");
-	}
-
 	return cfg;
 }
 
-static MTY_JSON *main_serialize_config(struct config *cfg, const MTY_JSON *core_options, const MTY_JSON *core_exts)
+static MTY_JSON *main_serialize_config(struct config *cfg, const MTY_JSON *core_options)
 {
 	MTY_JSON *jcfg = MTY_JSONObjCreate();
 
@@ -225,6 +215,9 @@ static MTY_JSON *main_serialize_config(struct config *cfg, const MTY_JSON *core_
 
 	#define CFG_SET_STR(name) \
 		MTY_JSONObjSetString(jcfg, #name, cfg->name)
+
+	#define CFG_SET_CORE(name, s) \
+		MTY_JSONObjSetString(jcfg, #name, cfg->core[s])
 
 	CFG_SET_BOOL(bg_pause);
 	CFG_SET_BOOL(menu_pause);
@@ -248,41 +241,40 @@ static MTY_JSON *main_serialize_config(struct config *cfg, const MTY_JSON *core_
 
 	CFG_SET_BOOL(fullscreen);
 
-	CFG_SET_STR(core.atari2600);
-	CFG_SET_STR(core.gameboy);
-	CFG_SET_STR(core.gba);
-	CFG_SET_STR(core.genesis);
-	CFG_SET_STR(core.ms);
-	CFG_SET_STR(core.n64);
-	CFG_SET_STR(core.nes);
-	CFG_SET_STR(core.ps);
-	CFG_SET_STR(core.snes);
-	CFG_SET_STR(core.tg16);
+	CFG_SET_CORE(core.atari2600, CORE_SYSTEM_ATARI2600);
+	CFG_SET_CORE(core.nes, CORE_SYSTEM_NES);
+	CFG_SET_CORE(core.ms, CORE_SYSTEM_SMS);
+	CFG_SET_CORE(core.tg16, CORE_SYSTEM_TG16);
+	CFG_SET_CORE(core.genesis, CORE_SYSTEM_GENESIS);
+	CFG_SET_CORE(core.gameboy, CORE_SYSTEM_GAMEBOY);
+	CFG_SET_CORE(core.snes, CORE_SYSTEM_SNES);
+	CFG_SET_CORE(core.ps, CORE_SYSTEM_PS);
+	CFG_SET_CORE(core.n64, CORE_SYSTEM_N64);
+	CFG_SET_CORE(core.gba, CORE_SYSTEM_GBA);
 
 	MTY_JSONObjSetItem(jcfg, "core_options", MTY_JSONDuplicate(core_options));
-	MTY_JSONObjSetItem(jcfg, "core_exts", MTY_JSONDuplicate(core_exts));
 
 	return jcfg;
 }
 
-static void main_save_config(struct config *cfg, const MTY_JSON *core_options, const MTY_JSON *core_exts)
+static void main_save_config(struct config *cfg, const MTY_JSON *core_options)
 {
-	MTY_JSON *jcfg = main_serialize_config(cfg, core_options, core_exts);
+	MTY_JSON *jcfg = main_serialize_config(cfg, core_options);
 
 	MTY_JSONWriteFile(config_file(), jcfg);
 	MTY_JSONDestroy(&jcfg);
 }
 
-static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options, MTY_JSON **core_exts)
+static MTY_JSON *main_load_config(struct config *cfg, MTY_JSON **core_options)
 {
 	MTY_JSON *jcfg = MTY_JSONReadFile(config_file());
 	if (!jcfg)
 		jcfg = MTY_JSONObjCreate();
 
-	*cfg = main_parse_config(jcfg, core_options, core_exts);
+	*cfg = main_parse_config(jcfg, core_options);
 	MTY_JSONDestroy(&jcfg);
 
-	return main_serialize_config(cfg, *core_options, *core_exts);
+	return main_serialize_config(cfg, *core_options);
 }
 
 
@@ -379,22 +371,8 @@ static void main_log(const char *msg, void *opaque)
 	printf("%s", msg);
 }
 
-static CoreSystem main_get_core_system(const char *key)
+static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name)
 {
-	if (!strcmp(key, "nes")) return CORE_SYSTEM_NES;
-	if (!strcmp(key, "ms")) return CORE_SYSTEM_SMS;
-	if (!strcmp(key, "tg16")) return CORE_SYSTEM_TG16;
-	if (!strcmp(key, "gameboy")) return CORE_SYSTEM_GAMEBOY;
-	if (!strcmp(key, "snes")) return CORE_SYSTEM_SNES;
-	if (!strcmp(key, "n64")) return CORE_SYSTEM_N64;
-
-	return CORE_SYSTEM_UNKNOWN;
-}
-
-static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name,
-	const char **core)
-{
-	*core = CONFIG_GET_CORE(&ctx->cfg, "tg16");
 	CoreSystem sys = CORE_SYSTEM_TG16;
 
 	MTY_FileList *list = MTY_GetFileList(MTY_GetPathPrefix(name), ".bin");
@@ -423,18 +401,14 @@ static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name,
 					buf[y] = 1;
 
 			// PLAYSTATION is about 37KB in
-			if (strstr(buf + ps_offset, "PLAYSTATION")) {
-				*core = CONFIG_GET_CORE(&ctx->cfg, "ps");
-				sys = CORE_SYSTEM_UNKNOWN;
-			}
+			if (strstr(buf + ps_offset, "PLAYSTATION"))
+				sys = CORE_SYSTEM_PS;
 
 			// SEGADISCSYSTEM is close to the beginning
 			buf[1024] = 0;
 
-			if (strstr(buf, "SEGADISCSYSTEM")) {
-				*core = CONFIG_GET_CORE(&ctx->cfg, "genesis");
-				sys = CORE_SYSTEM_UNKNOWN;
-			}
+			if (strstr(buf, "SEGADISCSYSTEM"))
+				sys = CORE_SYSTEM_GENESIS;
 		}
 
 		fclose(f);
@@ -446,30 +420,23 @@ static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name,
 	return sys;
 }
 
-static CoreSystem main_get_system_by_ext(struct main *ctx, const char *name,
-	const char **core)
+static CoreSystem main_get_system(struct main *ctx, const char *name)
 {
-	*core = NULL;
-
 	const char *ext = MTY_GetFileExtension(name);
 
 	if (!strcmp(ext, "cue"))
-		return main_get_cdrom_system(ctx, name, core);
+		return main_get_cdrom_system(ctx, name);
 
-	uint64_t iter = 0;
+	for (CoreSystem x = 0; x < CORE_SYSTEM_MAX; x++) {
+		const char *exts = CORE_EXTS[x];
+		if (!exts)
+			continue;
 
-	for (const char *key = NULL; MTY_JSONObjGetNextKey(ctx->core_exts, &iter, &key);) {
-		char exts[SYSTEM_EXTS_MAX];
+		const char *substr = MTY_Strcasestr(exts, ext);
+		size_t end = strlen(ext);
 
-		if (MTY_JSONObjGetString(ctx->core_exts, key, exts, SYSTEM_EXTS_MAX)) {
-			const char *substr = MTY_Strcasestr(exts, ext);
-			size_t end = strlen(ext);
-
-			if (substr && (substr[end] == '\0' || substr[end] == '|')) {
-				*core = CONFIG_GET_CORE(&ctx->cfg, key);
-				return main_get_core_system(key);
-			}
-		}
+		if (substr && (substr[end] == '\0' || substr[end] == '|'))
+			return x;
 	}
 
 	return CORE_SYSTEM_UNKNOWN;
@@ -537,13 +504,13 @@ static void main_unload(struct main *ctx)
 
 static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 {
-	const char *core = NULL;
-	CoreSystem system = main_get_system_by_ext(ctx, name, &core);
-	if (!core)
+	CoreSystem system = main_get_system(ctx, name);
+	if (system == CORE_SYSTEM_UNKNOWN)
 		return;
 
 	main_unload(ctx);
 
+	const char *core = ctx->cfg.core[system];
 	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
 	const char *core_path = MTY_JoinPath(config_cores_dir(), cname);
 	const char *content_name = MTY_GetFileName(name, false);
@@ -656,10 +623,18 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 
 static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type, const char *dir)
 {
-	const char *filter = "";
+	char filter[512] = ".cue";
 
-	if (!strcmp(type, "discs"))
-		filter = ".cue";
+	if (!strcmp(type, "files")) {
+		for (CoreSystem x = 0; x < CORE_SYSTEM_MAX; x++) {
+			const char *exts = CORE_EXTS[x];
+
+			if (exts) {
+				MTY_Strcat(filter, 512, "|");
+				MTY_Strcat(filter, 512, exts);
+			}
+		}
+	}
 
 	MTY_FileList *list = MTY_GetFileList(dir, filter);
 
@@ -673,6 +648,11 @@ static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type
 
 		for (uint32_t x = 0; x < list->len; x++) {
 			MTY_FileDesc *desc = &list->files[x];
+
+			// .bin files greater than 128KB could not be atari2600 games
+			const char *ext = strrchr(desc->name, '.');
+			if (ext && !strcmp(ext, ".bin") && desc->size > 128 * 1024)
+				continue;
 
 			MTY_JSON *fobj = MTY_JSONObjCreate();
 			MTY_JSONObjSetBool(fobj, "dir", desc->dir);
@@ -845,7 +825,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 
 			MTY_JSONObjSetBool(ctx->jcfg, "fullscreen", false);
 			struct app_event evt = {.type = APP_EVENT_CONFIG};
-			evt.cfg = main_parse_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
+			evt.cfg = main_parse_config(ctx->jcfg, &ctx->core_options);
 			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "quit")) {
@@ -935,7 +915,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 		}
 
 		struct app_event evt = {.type = APP_EVENT_CONFIG};
-		evt.cfg = main_parse_config(ctx->jcfg, &ctx->core_options, &ctx->core_exts);
+		evt.cfg = main_parse_config(ctx->jcfg, &ctx->core_options);
 		main_push_app_event(&evt, ctx);
 
 	// Core options change
@@ -1416,7 +1396,7 @@ int32_t main(int32_t argc, char **argv)
 	ctx.running = true;
 	ctx.core_fps = 60;
 
-	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options, &ctx.core_exts);
+	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options);
 
 	if (ctx.cfg.console)
 		MTY_OpenConsole(APP_NAME);
@@ -1467,7 +1447,7 @@ int32_t main(int32_t argc, char **argv)
 
 	ctx.cfg.window = MTY_WindowGetFrame(ctx.app, ctx.window);
 	ctx.cfg.fullscreen = ctx.cfg.window.type & MTY_WINDOW_FULLSCREEN;
-	main_save_config(&ctx.cfg, ctx.core_options, ctx.core_exts);
+	main_save_config(&ctx.cfg, ctx.core_options);
 
 	except:
 
@@ -1477,7 +1457,6 @@ int32_t main(int32_t argc, char **argv)
 	MTY_QueueDestroy(&ctx.mt_q);
 	MTY_QueueDestroy(&ctx.a_q);
 	MTY_JSONDestroy(&ctx.core_options);
-	MTY_JSONDestroy(&ctx.core_exts);
 	MTY_JSONDestroy(&ctx.jcfg);
 
 	csync_stop(&ctx.csync);
