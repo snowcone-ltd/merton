@@ -224,9 +224,10 @@ struct csync *csync_start(void)
 {
 	struct csync *ctx = MTY_Alloc(1, sizeof(struct csync));
 
-	ctx->thread = MTY_ThreadCreate(csync_thread, ctx);
 	ctx->q = MTY_QueueCreate(20, sizeof(struct csync_cmd));
 	ctx->m = MTY_MutexCreate();
+
+	ctx->thread = MTY_ThreadCreate(csync_thread, ctx);
 
 	csync_simple_command(ctx->q, CSYNC_CMD_FETCH_CORE_HASH);
 
