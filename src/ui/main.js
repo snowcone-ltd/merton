@@ -57,12 +57,8 @@ const MENU_ITEMS = [
 		{name: 'menu_pause', type: 'cfg', etype: 'checkbox', label: 'Menu Pause'},
 		{name: 'bg_pause', type: 'cfg', etype: 'checkbox', label: 'Background Pause'},
 		{etype: 'separator'},
-		{name: 'disk', type: 'nstate', etype: 'dropdown', label: 'Insert Disk', needsRunning: true, needsDisks: true, opts: [
-			{label: 'Select Disk', value: '---'},
-			{label: '1', value: 0},
-			{label: '2', value: 1},
-			{label: '3', value: 2},
-		]},
+		{name: 'insert-disc', type: 'discs', etype: 'label', label: 'Insert Disc', needsRunning: true, needsDisks: true},
+		{etype: 'separator'},
 		{name: 'save-state', type: 'nstate', etype: 'dropdown', label: 'Save State', needsRunning: true, opts: [
 			{label: 'Select Slot', value: '---'},
 			{label: '1', value: 1},
@@ -169,11 +165,12 @@ function setLocal(key, val) {
 
 // Events
 
-function handleEvent(evt, state, setState) {
+function handleEvent(evt) {
 	switch (evt.type) {
 		// Handled internally
+		case 'discs':
 		case 'files':
-			handleEvent({type: 'action', name: 'files', basedir: getLocal('fdir', '')});
+			handleEvent({type: 'action', name: evt.type, basedir: getLocal('fdir', '')});
 			break;
 
 		// Sent to native layer
@@ -207,7 +204,7 @@ function ActionButton(props) {
 	if (props.disabled) {
 		style.color = `rgba(120, 120, 120, 1.0)`;
 		style.cursor = '';
-		onClick = () => {};
+		props.onClick = () => {};
 	}
 
 	return e('div', {style: style, onClick: props.onClick, disabled: props.disabled,
@@ -514,7 +511,7 @@ function MenuRight(props) {
 			continue;
 
 		const disabled = (!props.appState.nstate.running && mitem.needsRunning) ||
-			(!props.appState.nstate.has_disks && mitem.needsDisks) ||
+			(!props.appState.nstate.has_discs && mitem.needsDisks) ||
 			(props.appState.cfg.filter != 1 && mitem.needsLinear);
 
 		switch (mitem.etype) {
@@ -607,11 +604,14 @@ class LoadROMModal extends React.Component {
 	render() {
 		let files = this.props.appState.files.list;
 		let dir = this.props.appState.files.path;
+		let type = this.props.appState.files.type;
+		let actionType = type == 'files' ? 'load-rom' : 'insert-disc';
+		let title = type == 'files' ? 'Load ROM' : "Insert Disc";
 
 		setLocal('fdir', dir);
 
 		NAV_CaptureLeft(() => {
-			handleEvent({type: 'action', name: 'files', basedir: dir, dir: '..'});
+			handleEvent({type: 'action', name: type, basedir: dir, dir: '..'});
 		});
 
 		const rstyle = {
@@ -647,12 +647,12 @@ class LoadROMModal extends React.Component {
 
 			let click = () => {
 				if (file.dir) {
-					handleEvent({type: 'action', name: 'files', basedir: dir, dir: file.name});
+					handleEvent({type: 'action', name: type, basedir: dir, dir: file.name});
 					setLocal('findex', 0);
 					NAV_Focus(2, 0);
 
 				} else {
-					handleEvent({type: 'action', name: 'load-rom', basedir: dir, fname: file.name});
+					handleEvent({type: 'action', name: actionType, basedir: dir, fname: file.name});
 					setLocal('findex', x - 1); // For '.'
 					clearModals(this.props.setAppState, 1);
 				}
@@ -661,7 +661,7 @@ class LoadROMModal extends React.Component {
 			items.push(e('div', {style: file.dir ? rstyle: rfstyle, onClick: click, 'nav-item': 2, tabindex: -1}, file.name));
 		}
 
-		return e(Modal, {title: 'Load ROM', setAppState: this.props.setAppState},
+		return e(Modal, {title: title, setAppState: this.props.setAppState},
 			[
 				e('div', {style: dstyle}, dir),
 				e('div', {style: cstyle}, items),
@@ -812,6 +812,7 @@ class Main extends React.Component {
 				case 'controller':
 					NAV_Controller(json);
 					break;
+				case 'discs':
 				case 'files':
 					this.setState({files: json});
 					break;

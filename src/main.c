@@ -71,14 +71,13 @@ struct app_event {
 	MTY_GFX gfx;
 	int32_t vsync;
 	char title[APP_TITLE_MAX];
-	char game[MTY_PATH_MAX];
+	char file[MTY_PATH_MAX];
 	struct {
 		char key[CORE_KEY_NAME_MAX];
 		char val[CORE_OPT_NAME_MAX];
 	} opt;
 	bool fetch_core;
 	uint8_t state_index;
-	int8_t disk;
 };
 
 struct main {
@@ -107,6 +106,7 @@ struct main {
 	bool audio_init;
 	bool resampler_init;
 	bool show_ui;
+	bool cdrom;
 
 	MTY_RenderDesc desc;
 
@@ -526,6 +526,7 @@ static void main_unload(struct main *ctx)
 	ctx->system = CORE_SYSTEM_UNKNOWN;
 	ctx->game_path = NULL;
 	ctx->content_name = NULL;
+	ctx->cdrom = false;
 
 	ctx->resampler_init = false;
 
@@ -574,6 +575,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		ctx->game_path = MTY_Strdup(name);
 		ctx->content_name = MTY_Strdup(content_name);
 		ctx->core_fps = CoreGetFrameRate(ctx->core);
+		ctx->cdrom = !strcmp("cue", MTY_GetFileExtension(name));
 
 		struct app_event evt = {.type = APP_EVENT_TITLE};
 		snprintf(evt.title, APP_TITLE_MAX, "%s - %s", APP_NAME, ctx->content_name);
@@ -652,15 +654,20 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 	MTY_WebViewSetInputPassthrough(app, window, true);
 }
 
-static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *dir)
+static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type, const char *dir)
 {
-	MTY_FileList *list = MTY_GetFileList(dir, NULL);
+	const char *filter = "";
+
+	if (!strcmp(type, "discs"))
+		filter = ".cue";
+
+	MTY_FileList *list = MTY_GetFileList(dir, filter);
 
 	if (list) {
 		MTY_JSON *jmsg = MTY_JSONObjCreate();
 		MTY_JSON *jlist = MTY_JSONArrayCreate(list->len);
 
-		MTY_JSONObjSetString(jmsg, "type", "files");
+		MTY_JSONObjSetString(jmsg, "type", type);
 		MTY_JSONObjSetString(jmsg, "path", dir);
 		MTY_JSONObjSetItem(jmsg, "list", jlist);
 
@@ -713,6 +720,12 @@ static void main_post_ui_controller(MTY_App *app, MTY_Window window, const MTY_C
 
 // WebView (Main)
 
+static void main_hide_menu_event(struct main *ctx)
+{
+	struct app_event evt = {.type = APP_EVENT_HIDE_MENU};
+	main_push_app_event(&evt, ctx);
+}
+
 static void main_post_ui_state(struct main *ctx)
 {
 	// Configuration
@@ -759,16 +772,13 @@ static void main_post_ui_state(struct main *ctx)
 	}
 
 	// Other native state
-	bool has_disks = false;
 	MTY_JSON *nstate = MTY_JSONObjCreate();
 	MTY_JSONObjSetItem(msg, "nstate", nstate);
 	MTY_JSONObjSetBool(nstate, "pause", ctx->paused);
 	MTY_JSONObjSetBool(nstate, "running", CoreGameIsLoaded(ctx->core));
 	MTY_JSONObjSetNumber(nstate, "save-state", ctx->last_save_index);
 	MTY_JSONObjSetNumber(nstate, "load-state", ctx->last_load_index);
-	MTY_JSONObjSetBool(nstate, "has_disks", has_disks);
-	MTY_JSONObjSetNumber(nstate, "num_disks", 0);
-	MTY_JSONObjSetNumber(nstate, "disk", -1);
+	MTY_JSONObjSetBool(nstate, "has_discs", ctx->cdrom);
 	MTY_JSONObjSetBool(nstate, "allow_window_adjustments", !main_ui_is_steam());
 
 	char *jmsg = MTY_JSONSerialize(msg);
@@ -795,7 +805,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 		if (!MTY_JSONObjGetString(j, "name", jbuf, JBUF_SIZE))
 			goto except;
 
-		if (!strcmp(jbuf, "load-rom")) {
+		if (!strcmp(jbuf, "load-rom") || !strcmp(jbuf, "insert-disc")) {
 			char basedir[MTY_PATH_MAX] = {0};
 			if (!MTY_JSONObjGetString(j, "basedir", basedir, MTY_PATH_MAX))
 				goto except;
@@ -804,8 +814,17 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 			if (!MTY_JSONObjGetString(j, "fname", fname, MTY_PATH_MAX))
 				goto except;
 
-			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .fetch_core = true, .rt = true};
-			snprintf(evt.game, MTY_PATH_MAX, "%s", MTY_JoinPath(basedir, fname));
+			struct app_event evt = {.rt = true};
+			snprintf(evt.file, MTY_PATH_MAX, "%s", MTY_JoinPath(basedir, fname));
+
+			if (!strcmp(jbuf, "load-rom")) {
+				evt.type = APP_EVENT_LOAD_GAME;
+				evt.fetch_core = true;
+
+			} else {
+				evt.type = APP_EVENT_SET_DISK;
+			}
+
 			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "unload-rom")) {
@@ -843,7 +862,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 
 			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
 			evt.fetch_core = true;
-			snprintf(evt.game, MTY_PATH_MAX, "%s", ctx->game_path);
+			snprintf(evt.file, MTY_PATH_MAX, "%s", ctx->game_path);
 			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "core-reset")) {
@@ -866,15 +885,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 
 			main_push_app_event(&evt, ctx);
 
-		} else if (!strcmp(jbuf, "disk")) {
-			struct app_event evt = {.type = APP_EVENT_SET_DISK, .rt = true};
-
-			if (!MTY_JSONObjGetInt8(j, "value", &evt.disk))
-				goto except;
-
-			main_push_app_event(&evt, ctx);
-
-		} else if (!strcmp(jbuf, "files")) {
+		} else if (!strcmp(jbuf, "files") || !strcmp(jbuf, "discs")) {
 			char basedir[MTY_PATH_MAX] = {0};
 			MTY_JSONObjGetString(j, "basedir", basedir, MTY_PATH_MAX);
 
@@ -888,7 +899,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 			if (!rdir)
 				rdir = MTY_GetProcessDir();
 
-			main_post_ui_files(ctx->app, ctx->window, rdir);
+			main_post_ui_files(ctx->app, ctx->window, jbuf, rdir);
 		}
 
 	// Configuration change
@@ -1023,19 +1034,15 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				MTY_WindowSetTitle(ctx->app, ctx->window, evt->title);
 				break;
 			case APP_EVENT_LOAD_GAME: {
-				main_load_game(ctx, evt->game, evt->fetch_core);
+				main_load_game(ctx, evt->file, evt->fetch_core);
 				ctx->paused = false;
-
-				struct app_event hevt = {.type = APP_EVENT_HIDE_MENU};
-				main_push_app_event(&hevt, ctx);
+				main_hide_menu_event(ctx);
 				break;
 			}
 			case APP_EVENT_RESET: {
 				CoreReset(ctx->core);
 				ctx->paused = false;
-
-				struct app_event hevt = {.type = APP_EVENT_HIDE_MENU};
-				main_push_app_event(&hevt, ctx);
+				main_hide_menu_event(ctx);
 				break;
 			}
 			case APP_EVENT_UNLOAD_GAME: {
@@ -1074,8 +1081,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 					free(state);
 				}
 
-				struct app_event sevt = {.type = APP_EVENT_HIDE_MENU};
-				main_push_app_event(&sevt, ctx);
+				main_hide_menu_event(ctx);
 				break;
 			}
 			case APP_EVENT_LOAD_STATE: {
@@ -1094,12 +1100,12 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 					MTY_Free(state);
 				}
 
-				struct app_event sevt = {.type = APP_EVENT_HIDE_MENU};
-				main_push_app_event(&sevt, ctx);
+				main_hide_menu_event(ctx);
 				break;
 			}
 			case APP_EVENT_SET_DISK:
-				CoreInsertDisc(ctx->core, "");
+				CoreInsertDisc(ctx->core, evt->file);
+				main_hide_menu_event(ctx);
 				break;
 			case APP_EVENT_HIDE_MENU:
 				main_ui_show(ctx->app, ctx->window, false);
@@ -1248,7 +1254,7 @@ static void *main_render_thread(void *opaque)
 		// Poll a core fetch, then run game
 		if (csync_poll_fetch_core(ctx->csync)) {
 			struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
-			snprintf(evt.game, MTY_PATH_MAX, "%s", ctx->next_game);
+			snprintf(evt.file, MTY_PATH_MAX, "%s", ctx->next_game);
 			main_push_app_event(&evt, ctx);
 		}
 
@@ -1305,7 +1311,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 		case MTY_EVENT_DROP: {
 			struct app_event devt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
 			devt.fetch_core = true;
-			snprintf(devt.game, MTY_PATH_MAX, "%s", evt->drop.name);
+			snprintf(devt.file, MTY_PATH_MAX, "%s", evt->drop.name);
 			main_push_app_event(&devt, ctx);
 			break;
 		}
@@ -1427,7 +1433,7 @@ int32_t main(int32_t argc, char **argv)
 	if (argc >= 2) {
 		struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
 		evt.fetch_core = true;
-		snprintf(evt.game, MTY_PATH_MAX, "%s", argv[1]);
+		snprintf(evt.file, MTY_PATH_MAX, "%s", argv[1]);
 		main_push_app_event(&evt, &ctx);
 
 	} else {
