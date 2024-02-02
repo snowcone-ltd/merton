@@ -24,6 +24,7 @@ ifeq ($(UNAME_S), Linux)
 TARGET = linux
 
 LIBS = \
+	-lgcc_s \
 	-lc \
 	-lm
 
@@ -78,7 +79,7 @@ all: clean clear
 	make objs -j4
 
 objs: $(OBJS)
-	$(CC) -o $(TARGET)/$(NAME) $(OBJS) $(STATIC_LIBS) $(LIBS) $(LD_FLAGS)
+	$(CC) -o $(TARGET)/$(ARCH)/$(NAME) $(OBJS) $(STATIC_LIBS) $(LIBS) $(LD_FLAGS)
 
 clean:
 	@rm -rf android/build
