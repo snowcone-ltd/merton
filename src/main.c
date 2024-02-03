@@ -1362,7 +1362,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				main_post_ui_controller(ctx, ctx->app, ctx->window, c);
 			}
 
-			bool pressed = c->buttons[MTY_CBUTTON_RIGHT_TRIGGER];
+			bool pressed = c->axes[MTY_CAXIS_TRIGGER_R].value > 200;
 
 			toggle_menu = pressed && ctx->ui_debounce != pressed;
 			ctx->ui_debounce = pressed;
