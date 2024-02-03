@@ -143,6 +143,32 @@ static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 	[MTY_KEY_D]         = CORE_BUTTON_DPAD_R,
 };
 
+static const MTY_CButton BUTTON_MAP[CORE_BUTTON_MAX] = {
+	 [CORE_BUTTON_X]      = MTY_CBUTTON_X,
+	 [CORE_BUTTON_A]      = MTY_CBUTTON_A,
+	 [CORE_BUTTON_B]      = MTY_CBUTTON_B,
+	 [CORE_BUTTON_Y]      = MTY_CBUTTON_Y,
+	 [CORE_BUTTON_L]      = MTY_CBUTTON_LEFT_SHOULDER,
+	 [CORE_BUTTON_R]      = MTY_CBUTTON_RIGHT_SHOULDER,
+	 [CORE_BUTTON_L2]     = MTY_CBUTTON_LEFT_TRIGGER,
+	 [CORE_BUTTON_R2]     = MTY_CBUTTON_RIGHT_TRIGGER,
+	 [CORE_BUTTON_SELECT] = MTY_CBUTTON_BACK,
+	 [CORE_BUTTON_START]  = MTY_CBUTTON_START,
+	 [CORE_BUTTON_L3]     = MTY_CBUTTON_LEFT_THUMB,
+	 [CORE_BUTTON_R3]     = MTY_CBUTTON_RIGHT_THUMB,
+	 [CORE_BUTTON_DPAD_U] = MTY_CBUTTON_DPAD_UP,
+	 [CORE_BUTTON_DPAD_R] = MTY_CBUTTON_DPAD_RIGHT,
+	 [CORE_BUTTON_DPAD_D] = MTY_CBUTTON_DPAD_DOWN,
+	 [CORE_BUTTON_DPAD_L] = MTY_CBUTTON_DPAD_LEFT,
+};
+
+static const MTY_CAxis AXIS_MAP[CORE_AXIS_MAX] = {
+	[CORE_AXIS_LX] = MTY_CAXIS_THUMB_LX,
+	[CORE_AXIS_LY] = MTY_CAXIS_THUMB_LY,
+	[CORE_AXIS_RX] = MTY_CAXIS_THUMB_RX,
+	[CORE_AXIS_RY] = MTY_CAXIS_THUMB_RY,
+};
+
 
 // Config
 
@@ -1295,6 +1321,20 @@ static void *main_render_thread(void *opaque)
 
 // Main thread
 
+static void main_core_controller(Core *core, uint8_t player, const MTY_ControllerEvent *c)
+{
+	MTY_ControllerEvent dummy = {0};
+
+	if (!c)
+		c = &dummy;
+
+	for (CoreButton x = 1; x < CORE_BUTTON_MAX; x++)
+		CoreSetButton(core, player, x, c->buttons[BUTTON_MAP[x]]);
+
+	for (CoreAxis x = 1; x < CORE_AXIS_MAX; x++)
+		CoreSetAxis(core, player, x, c->axes[AXIS_MAP[x]].value);
+}
+
 static void main_event_func(const MTY_Event *evt, void *opaque)
 {
 	struct main *ctx = opaque;
@@ -1336,27 +1376,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			const MTY_ControllerEvent *c = &evt->controller;
 
 			if (!ctx->ui_visible) {
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_A, c->buttons[MTY_CBUTTON_A]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_B, c->buttons[MTY_CBUTTON_B]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_X, c->buttons[MTY_CBUTTON_X]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_Y, c->buttons[MTY_CBUTTON_Y]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_SELECT, c->buttons[MTY_CBUTTON_BACK]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_START, c->buttons[MTY_CBUTTON_START]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_L, c->buttons[MTY_CBUTTON_LEFT_SHOULDER]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_R, c->buttons[MTY_CBUTTON_RIGHT_SHOULDER]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_U, c->buttons[MTY_CBUTTON_DPAD_UP]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_D, c->buttons[MTY_CBUTTON_DPAD_DOWN]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_L, c->buttons[MTY_CBUTTON_DPAD_LEFT]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_DPAD_R, c->buttons[MTY_CBUTTON_DPAD_RIGHT]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_L2, c->buttons[MTY_CBUTTON_LEFT_TRIGGER]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_R2, c->buttons[MTY_CBUTTON_RIGHT_TRIGGER]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_L3, c->buttons[MTY_CBUTTON_LEFT_THUMB]);
-				CoreSetButton(ctx->core, 0, CORE_BUTTON_R3, c->buttons[MTY_CBUTTON_RIGHT_THUMB]);
-
-				CoreSetAxis(ctx->core, 0, CORE_AXIS_LX, c->axes[MTY_CAXIS_THUMB_LX].value);
-				CoreSetAxis(ctx->core, 0, CORE_AXIS_LY, c->axes[MTY_CAXIS_THUMB_LY].value);
-				CoreSetAxis(ctx->core, 0, CORE_AXIS_RX, c->axes[MTY_CAXIS_THUMB_RX].value);
-				CoreSetAxis(ctx->core, 0, CORE_AXIS_RY, c->axes[MTY_CAXIS_THUMB_RY].value);
+				main_core_controller(ctx->core, 0, c);
 
 			} else {
 				main_post_ui_controller(ctx, ctx->app, ctx->window, c);
@@ -1381,8 +1401,10 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 			break;
 	}
 
-	if (toggle_menu)
+	if (toggle_menu) {
+		main_core_controller(ctx->core, 0, NULL);
 		main_ui_show(ctx->app, ctx->window, !ctx->ui_visible);
+	}
 }
 
 static bool main_app_func(void *opaque)
