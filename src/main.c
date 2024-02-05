@@ -1162,7 +1162,7 @@ static bool main_audio_init(uint32_t rate, uint32_t buffer, MTY_Resampler **rsp,
 	MTY_AudioDestroy(audio);
 
 	*audio = MTY_AudioCreate(rate, buffer, buffer * 2, 2, NULL, false);
-	if (!audio)
+	if (!*audio)
 		return false;
 
 	*rsp = MTY_ResamplerCreate();
