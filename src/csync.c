@@ -140,7 +140,7 @@ static void csync_fetch_core_hash_cmd(struct csync *ctx, struct csync_cmd *cmd)
 static bool csync_is_symlink(const char *file)
 {
 	#if defined(_WIN32)
-		DWORD attr = GetFileAttributes(MTY_MultiToWideDL(file));
+		DWORD attr = GetFileAttributes(file);
 
 		return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_REPARSE_POINT);
 	#else

@@ -18,7 +18,6 @@ INCLUDES = \
 	-I..\libmatoya\src
 
 DEFS = \
-	-DUNICODE \
 	-DWIN32_LEAN_AND_MEAN
 
 RFLAGS = \
