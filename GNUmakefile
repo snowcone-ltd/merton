@@ -18,7 +18,7 @@ FLAGS = \
 	-Wextra \
 	-Wshadow \
 	-Wno-unused-parameter \
-	-std=c99 \
+	-std=c17 \
 	-fPIC
 
 DEFS = \

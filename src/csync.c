@@ -31,7 +31,7 @@ struct csync {
 
 	MTY_JSON *core_hash;
 
-	MTY_Atomic32 fetch_core;
+	_Atomic bool fetch_core;
 };
 
 struct csync_cmd {
@@ -92,7 +92,7 @@ static void csync_fetch_core_cmd(struct csync *ctx, struct csync_cmd *cmd)
 		const char *path = MTY_JoinPath(base, cmd->fetch_core.file);
 
 		if (MTY_WriteFile(path, so, size))
-			MTY_Atomic32Set(&ctx->fetch_core, 1);
+			ctx->fetch_core = true;
 	}
 }
 
@@ -110,9 +110,8 @@ void csync_fetch_core(struct csync *ctx, const char *file)
 
 bool csync_poll_fetch_core(struct csync *ctx)
 {
-	if (MTY_Atomic32Get(&ctx->fetch_core) == 1) {
-		MTY_Atomic32Set(&ctx->fetch_core, 0);
-
+	if (ctx->fetch_core) {
+		ctx->fetch_core = false;
 		return true;
 	}
 
