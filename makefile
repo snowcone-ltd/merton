@@ -30,6 +30,8 @@ FLAGS = \
 	/MT \
 	/MP \
 	/volatile:iso \
+	/std:c17 \
+	/experimental:c11atomics \
 	/wd4100 \
 	/wd4152 \
 	/wd4201 \
