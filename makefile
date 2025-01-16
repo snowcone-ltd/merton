@@ -33,14 +33,13 @@ FLAGS = \
 	/experimental:c11atomics \
 	/wd4100 \
 	/wd4152 \
-	/wd4201 \
 	/nologo
 
 LINK_FLAGS = \
 	/subsystem:windows \
 	/nodefaultlib \
 	/manifest:embed \
-	/manifestinput:assets\$(TARGET)\embed.manifest \
+	/manifestinput:manifest.xml \
 	/nologo
 
 LIBS = \
