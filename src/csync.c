@@ -79,7 +79,7 @@ static const char *csync_get_platform(void)
 
 static void csync_fetch_core_cmd(struct csync *ctx, struct csync_cmd *cmd)
 {
-	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/%s/%s/%s",
+	char *url = MTY_SprintfD("https://snowcone.ltd/cores/%s/%s/%s",
 		csync_get_platform(), CSYNC_CORE_ARCH, cmd->fetch_core.file);
 
 	void *so = NULL;
@@ -89,11 +89,13 @@ static void csync_fetch_core_cmd(struct csync *ctx, struct csync_cmd *cmd)
 		const char *base = config_cores_dir();
 		MTY_Mkdir(base);
 
-		const char *path = MTY_JoinPath(base, cmd->fetch_core.file);
+		const char *path = MTY_JoinPathTL(base, cmd->fetch_core.file);
 
 		if (MTY_WriteFile(path, so, size))
 			ctx->fetch_core = true;
 	}
+
+	MTY_Free(url);
 }
 
 void csync_fetch_core(struct csync *ctx, const char *file)
@@ -123,7 +125,7 @@ bool csync_poll_fetch_core(struct csync *ctx)
 
 static void csync_fetch_core_hash_cmd(struct csync *ctx, struct csync_cmd *cmd)
 {
-	const char *url = MTY_SprintfDL("https://snowcone.ltd/cores/core-hash.json");
+	char *url = MTY_SprintfD("https://snowcone.ltd/cores/core-hash.json");
 
 	void *json = NULL;
 	size_t size = 0;
@@ -135,6 +137,8 @@ static void csync_fetch_core_hash_cmd(struct csync *ctx, struct csync_cmd *cmd)
 
 		MTY_MutexUnlock(ctx->m);
 	}
+
+	MTY_Free(url);
 }
 
 static bool csync_is_symlink(const char *file)
@@ -223,7 +227,7 @@ struct csync *csync_start(void)
 {
 	struct csync *ctx = MTY_Alloc(1, sizeof(struct csync));
 
-	ctx->q = MTY_QueueCreate(20);
+	ctx->q = MTY_QueueCreate();
 	ctx->m = MTY_MutexCreate();
 
 	ctx->thread = MTY_ThreadCreate(csync_thread, ctx);

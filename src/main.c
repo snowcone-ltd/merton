@@ -397,7 +397,7 @@ static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name)
 {
 	CoreSystem sys = CORE_SYSTEM_TG16;
 
-	MTY_FileList *list = MTY_GetFileList(MTY_GetPathPrefix(name), ".bin");
+	MTY_FileList *list = MTY_GetFileList(MTY_GetPathPrefixTL(name), ".bin");
 	if (!list)
 		return sys;
 
@@ -448,7 +448,7 @@ static CoreSystem main_get_cdrom_system(struct main *ctx, const char *name)
 
 static CoreSystem main_get_system(struct main *ctx, const char *name)
 {
-	const char *ext = MTY_GetFileExtension(name);
+	const char *ext = MTY_GetFileExtensionTL(name);
 
 	if (!strcmp(ext, "cue"))
 		return main_get_cdrom_system(ctx, name);
@@ -513,9 +513,12 @@ static CoreSetting *main_set_core_options(struct main *ctx, const char *core_nam
 
 static void *main_read_sdata(const char *content_name, size_t *size)
 {
-	const char *name = MTY_SprintfDL("%s.srm", content_name);
+	char *name = MTY_SprintfD("%s.srm", content_name);
 
-	return MTY_ReadFile(MTY_JoinPath(config_save_dir(), name), size);
+	void *sdata = MTY_ReadFile(MTY_JoinPathTL(config_save_dir(), name), size);
+	MTY_Free(name);
+
+	return sdata;
 }
 
 static void main_save_sdata(Core *core, const char *content_name)
@@ -526,11 +529,12 @@ static void main_save_sdata(Core *core, const char *content_name)
 	size_t size = 0;
 	void *sdata = CoreGetSaveData(core, &size);
 	if (sdata) {
-		const char *name = MTY_SprintfDL("%s.srm", content_name);
+		char *name = MTY_SprintfD("%s.srm", content_name);
 		const char *dir = config_save_dir();
 
 		MTY_Mkdir(dir);
-		MTY_WriteFile(MTY_JoinPath(dir, name), sdata, size);
+		MTY_WriteFile(MTY_JoinPathTL(dir, name), sdata, size);
+		MTY_Free(name);
 		MTY_Free(sdata);
 	}
 }
@@ -577,9 +581,12 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 	main_unload(ctx);
 
 	const char *core = ctx->cfg.core[system];
-	const char *cname = MTY_SprintfDL("%s.%s", core, MTY_GetSOExtension());
-	const char *core_path = MTY_JoinPath(config_cores_dir(), cname);
-	const char *content_name = MTY_GetFileName(name, false);
+
+	char cname[CONFIG_CORE_MAX + 8];
+	snprintf(cname, CONFIG_CORE_MAX + 8, "%s.%s", core, MTY_GetSOExtension());
+
+	const char *core_path = MTY_JoinPathTL(config_cores_dir(), cname);
+	const char *content_name = MTY_GetFileNameTL(name, false);
 
 	bool file_ok = MTY_FileExists(core_path) &&
 		csync_check_core_hash(ctx->csync, core, core_path);
@@ -608,7 +615,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		ctx->game_path = MTY_Strdup(name);
 		ctx->content_name = MTY_Strdup(content_name);
 		ctx->core_fps = CoreGetFrameRate(ctx->core);
-		ctx->cdrom = !strcmp("cue", MTY_GetFileExtension(name));
+		ctx->cdrom = !strcmp("cue", MTY_GetFileExtensionTL(name));
 
 		struct app_event evt = {.type = APP_EVENT_TITLE};
 		snprintf(evt.title, APP_TITLE_MAX, "%s - %s", APP_NAME, ctx->content_name);
@@ -648,21 +655,23 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 			dir[x] = '/';
 
 	// The Steam WebView needs to know about the location of the SO
-	const char *fdir = main_ui_is_steam() ? MTY_JoinPath("deps", "steam") :
+	const char *fdir = main_ui_is_steam() ? MTY_JoinPathTL("deps", "steam") :
 		config_tmp_dir();
 
 	MTY_WindowSetWebView(app, window, fdir, MTN_DEBUG_WEBVIEW);
 
-	const char *url = MTY_SprintfDL("file:///%s/merton-files/ui/index.html", dir);
+	char *url = NULL;
 
 	// Development location
-	if (MTY_FileExists(MTY_JoinPath(dir, MTY_JoinPath("src", MTY_JoinPath("ui", "index.html"))))) {
-		url = MTY_SprintfDL("file:///%s/src/ui/index.html", dir);
+	if (MTY_FileExists(MTY_JoinPathTL(dir, MTY_JoinPathTL("src", MTY_JoinPathTL("ui", "index.html"))))) {
+		url = MTY_SprintfD("file:///%s/src/ui/index.html", dir);
 
 	// Production location, bootstrap from UI_ZIP if necessary
 	} else {
+		url = MTY_SprintfD("file:///%s/merton-files/ui/index.html", dir);
+
 		const char *ui = config_ui_dir();
-		char *id = MTY_ReadFile(MTY_JoinPath(ui, "id.txt"), NULL);
+		char *id = MTY_ReadFile(MTY_JoinPathTL(ui, "id.txt"), NULL);
 
 		if (!id || strcmp(id, UI_ZIP_ID)) {
 			MTY_Mkdir(ui);
@@ -672,12 +681,12 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 				void *out = MTY_Decompress(UI_ZIP[x].buf, UI_ZIP[x].size, &size);
 
 				if (out) {
-					MTY_WriteFile(MTY_JoinPath(ui, UI_ZIP[x].name), out, size);
+					MTY_WriteFile(MTY_JoinPathTL(ui, UI_ZIP[x].name), out, size);
 					MTY_Free(out);
 				}
 			}
 
-			MTY_WriteFile(MTY_JoinPath(ui, "id.txt"), UI_ZIP_ID, strlen(UI_ZIP_ID));
+			MTY_WriteFile(MTY_JoinPathTL(ui, "id.txt"), UI_ZIP_ID, strlen(UI_ZIP_ID));
 		}
 
 		MTY_Free(id);
@@ -685,6 +694,8 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 
 	MTY_WebViewNavigate(app, window, url, true);
 	MTY_WebViewSetInputPassthrough(app, window, true);
+
+	MTY_Free(url);
 }
 
 static void main_post_ui_files(MTY_App *app, MTY_Window window, const char *type, const char *dir)
@@ -870,7 +881,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 				goto except;
 
 			struct app_event evt = {.rt = true};
-			snprintf(evt.file, MTY_PATH_MAX, "%s", MTY_JoinPath(basedir, fname));
+			snprintf(evt.file, MTY_PATH_MAX, "%s", MTY_JoinPathTL(basedir, fname));
 
 			if (!strcmp(jbuf, "load-rom")) {
 				evt.type = APP_EVENT_LOAD_GAME;
@@ -881,7 +892,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 
 			} else {
 				MTY_Mkdir(config_system_dir());
-				MTY_CopyFile(evt.file, MTY_JoinPath(config_system_dir(), fname));
+				MTY_CopyFile(evt.file, MTY_JoinPathTL(config_system_dir(), fname));
 			}
 
 			main_push_app_event(&evt, ctx);
@@ -954,7 +965,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 			if (!basedir[0])
 				snprintf(basedir, MTY_PATH_MAX, "%s", MTY_GetProcessDir());
 
-			const char *rdir = MTY_ResolvePath(dir[0] ? MTY_JoinPath(basedir, dir) : basedir);
+			const char *rdir = MTY_ResolvePathTL(dir[0] ? MTY_JoinPathTL(basedir, dir) : basedir);
 			if (!rdir || !MTY_FileExists(rdir))
 				rdir = MTY_GetProcessDir();
 
@@ -1144,9 +1155,10 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 					const char *path = config_state_dir();
 					MTY_Mkdir(path);
 
-					const char *name = MTY_SprintfDL("%s.state%u", ctx->content_name, evt->state_index);
-					MTY_WriteFile(MTY_JoinPath(path, name), state, size);
+					char *name = MTY_SprintfD("%s.state%u", ctx->content_name, evt->state_index);
+					MTY_WriteFile(MTY_JoinPathTL(path, name), state, size);
 
+					MTY_Free(name);
 					free(state);
 				}
 
@@ -1157,10 +1169,11 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				if (!ctx->content_name || !ctx->core)
 					break;
 
-				const char *name = MTY_SprintfDL("%s.state%u", ctx->content_name, evt->state_index);
+				char *name = MTY_SprintfD("%s.state%u", ctx->content_name, evt->state_index);
 
 				size_t size = 0;
-				void *state = MTY_ReadFile(MTY_JoinPath(config_state_dir(), name), &size);
+				void *state = MTY_ReadFile(MTY_JoinPathTL(config_state_dir(), name), &size);
+				MTY_Free(name);
 
 				if (state) {
 					if (CoreSetState(ctx->core, state, size))
@@ -1502,9 +1515,9 @@ int32_t main(int32_t argc, char **argv)
 	MTY_SetTimerResolution(1);
 	MTY_SetLogFunc(main_mty_log_callback, NULL);
 
-	ctx.rt_q = MTY_QueueCreate(50);
-	ctx.mt_q = MTY_QueueCreate(50);
-	ctx.a_q = MTY_QueueCreate(15);
+	ctx.rt_q = MTY_QueueCreate();
+	ctx.mt_q = MTY_QueueCreate();
+	ctx.a_q = MTY_QueueCreate();
 
 	if (argc >= 2) {
 		struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};

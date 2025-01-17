@@ -9,8 +9,8 @@
 #define CONFIG_CORE_MAX 64
 #define SYSTEM_NAME_MAX 64
 
-#define config_asset_dir()  MTY_JoinPath(MTY_GetProcessDir(), "merton-files")
-#define config_path(path)   MTY_JoinPath(config_asset_dir(), path)
+#define config_asset_dir()  MTY_JoinPathTL(MTY_GetProcessDir(), "merton-files")
+#define config_path(path)   MTY_JoinPathTL(config_asset_dir(), path)
 #define config_file()       config_path("config.json")
 #define config_cores_dir()  config_path("cores")
 #define config_save_dir()   config_path("save")
