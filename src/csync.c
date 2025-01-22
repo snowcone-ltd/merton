@@ -227,7 +227,7 @@ struct csync *csync_start(void)
 {
 	struct csync *ctx = MTY_Alloc(1, sizeof(struct csync));
 
-	ctx->q = MTY_QueueCreate(20);
+	ctx->q = MTY_QueueCreate();
 	ctx->m = MTY_MutexCreate();
 
 	ctx->thread = MTY_ThreadCreate(csync_thread, ctx);

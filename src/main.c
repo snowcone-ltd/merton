@@ -1515,9 +1515,9 @@ int32_t main(int32_t argc, char **argv)
 	MTY_SetTimerResolution(1);
 	MTY_SetLogFunc(main_mty_log_callback, NULL);
 
-	ctx.rt_q = MTY_QueueCreate(50);
-	ctx.mt_q = MTY_QueueCreate(50);
-	ctx.a_q = MTY_QueueCreate(15);
+	ctx.rt_q = MTY_QueueCreate();
+	ctx.mt_q = MTY_QueueCreate();
+	ctx.a_q = MTY_QueueCreate();
 
 	if (argc >= 2) {
 		struct app_event evt = {.type = APP_EVENT_LOAD_GAME, .rt = true};
