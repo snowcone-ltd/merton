@@ -13,7 +13,7 @@
 #define config_path(path)   MTY_JoinPathTL(config_asset_dir(), path)
 #define config_file()       config_path("config.json")
 #define config_cores_dir()  config_path("cores")
-#define config_save_dir()   config_path("save")
+#define config_save_dir()   config_path("saves")
 #define config_state_dir()  config_path("state")
 #define config_system_dir() config_path("system")
 #define config_tmp_dir()    config_path("tmp")
