@@ -50,7 +50,6 @@ LIBS = \
 	kernel32.lib \
 	windowscodecs.lib \
 	user32.lib \
-	comdlg32.lib \
 	shell32.lib \
 	d3d11.lib \
 	dxgi.lib \

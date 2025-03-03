@@ -94,6 +94,7 @@ struct main {
 	struct csync *csync;
 
 	char *game_path;
+	char *sdata_subdir;
 	char *content_name;
 	char *cmsg;
 	CoreSystem system;
@@ -511,29 +512,61 @@ static CoreSetting *main_set_core_options(struct main *ctx, const char *core_nam
 	return defs;
 }
 
-static void *main_read_sdata(const char *content_name, size_t *size)
+static const char *main_get_sdata_subdir(CoreSystem system, const char *name)
 {
-	char *name = MTY_SprintfD("%s.srm", content_name);
+	const char *ext = MTY_GetFileExtensionTL(name);
 
-	void *sdata = MTY_ReadFile(MTY_JoinPathTL(config_save_dir(), name), size);
+	bool cd = strcmp(ext, "cue") == 0;
+
+	switch (system) {
+		case CORE_SYSTEM_ATARI2600:
+			return "Atari7800";
+		case CORE_SYSTEM_GAMEBOY:
+			return "Gameboy";
+		case CORE_SYSTEM_GBA:
+			return "GBA";
+		case CORE_SYSTEM_GENESIS:
+			return cd ? "MegaCD" : "MegaDrive";
+		case CORE_SYSTEM_SMS:
+			return "MegaDrive";
+		case CORE_SYSTEM_N64:
+			return "N64";
+		case CORE_SYSTEM_NES:
+			return "NES";
+		case CORE_SYSTEM_SNES:
+			return "SNES";
+		case CORE_SYSTEM_TG16:
+			return cd ? "TGFX16-CD" : "TGFX16";
+	}
+
+	return "Unknown";
+}
+
+static void *main_read_sdata(const char *sdata_subdir, const char *content_name, size_t *size)
+{
+	char *name = MTY_SprintfD("%s.sav", content_name);
+
+	const char *path = MTY_JoinPathTL(MTY_JoinPathTL(config_save_dir(), sdata_subdir), name);
+	void *sdata = MTY_ReadFile(path, size);
 	MTY_Free(name);
 
 	return sdata;
 }
 
-static void main_save_sdata(Core *core, const char *content_name)
+static void main_save_sdata(const char *sdata_subdir, Core *core, const char *content_name)
 {
-	if (!content_name)
+	if (!content_name || !sdata_subdir)
 		return;
 
 	size_t size = 0;
 	void *sdata = CoreGetSaveData(core, &size);
 	if (sdata) {
-		char *name = MTY_SprintfD("%s.srm", content_name);
+		char *name = MTY_SprintfD("%s.sav", content_name);
 		const char *dir = config_save_dir();
+		const char *path = MTY_JoinPathTL(MTY_JoinPathTL(dir, sdata_subdir), name);
 
 		MTY_Mkdir(dir);
-		MTY_WriteFile(MTY_JoinPathTL(dir, name), sdata, size);
+		MTY_WriteFile(path, sdata, size);
 		MTY_Free(name);
 		MTY_Free(sdata);
 	}
@@ -547,7 +580,7 @@ static void main_render_dummy(struct main *ctx)
 
 static void main_unload(struct main *ctx)
 {
-	main_save_sdata(ctx->core, ctx->content_name);
+	main_save_sdata(ctx->sdata_subdir, ctx->core, ctx->content_name);
 
 	CoreUnloadGame(&ctx->core);
 	loader_reset();
@@ -556,11 +589,13 @@ static void main_unload(struct main *ctx)
 	MTY_WindowPresent(ctx->app, ctx->window);
 
 	MTY_Free(ctx->game_path);
+	MTY_Free(ctx->sdata_subdir);
 	MTY_Free(ctx->content_name);
 	MTY_Free(ctx->defs);
 
 	ctx->system = CORE_SYSTEM_UNKNOWN;
 	ctx->game_path = NULL;
+	ctx->sdata_subdir = NULL;
 	ctx->content_name = NULL;
 	ctx->defs = NULL;
 	ctx->cdrom = false;
@@ -587,6 +622,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 	const char *core_path = MTY_JoinPathTL(config_cores_dir(), cname);
 	const char *content_name = MTY_GetFileNameTL(name, false);
+	const char *sdata_subdir = main_get_sdata_subdir(system, name);
 
 	bool file_ok = MTY_FileExists(core_path) &&
 		csync_check_core_hash(ctx->csync, core, core_path);
@@ -603,7 +639,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		ctx->defs = main_set_core_options(ctx, core);
 
 		size_t sdata_size = 0;
-		void *sdata = main_read_sdata(content_name, &sdata_size);
+		void *sdata = main_read_sdata(sdata_subdir, content_name, &sdata_size);
 
 		ctx->core = CoreLoadGame(system, config_system_dir(), name, sdata, sdata_size);
 		MTY_Free(sdata);
@@ -613,6 +649,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 		ctx->system = system;
 		ctx->game_path = MTY_Strdup(name);
+		ctx->sdata_subdir = MTY_Strdup(sdata_subdir);
 		ctx->content_name = MTY_Strdup(content_name);
 		ctx->core_fps = CoreGetFrameRate(ctx->core);
 		ctx->cdrom = !strcmp("cue", MTY_GetFileExtensionTL(name));
@@ -1449,7 +1486,7 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 				main_post_ui_controller(ctx, ctx->app, ctx->window, c);
 			}
 
-			bool pressed = c->axes[MTY_CAXIS_TRIGGER_R] > 200;
+			bool pressed = c->buttons[MTY_CBUTTON_GUIDE];
 
 			toggle_menu = pressed && ctx->ui_debounce != pressed;
 			ctx->ui_debounce = pressed;
