@@ -523,18 +523,22 @@ static const char *main_get_sdata_subdir(CoreSystem system, const char *name)
 			return "Atari7800";
 		case CORE_SYSTEM_GAMEBOY:
 			return "Gameboy";
-		case CORE_SYSTEM_GBA:
-			return "GBA";
 		case CORE_SYSTEM_GENESIS:
 			return cd ? "MegaCD" : "MegaDrive";
 		case CORE_SYSTEM_SMS:
 			return "MegaDrive";
-		case CORE_SYSTEM_N64:
-			return "N64";
 		case CORE_SYSTEM_NES:
 			return "NES";
 		case CORE_SYSTEM_SNES:
 			return "SNES";
+		case CORE_SYSTEM_PS:
+			return "PSX";
+		case CORE_SYSTEM_N64:
+			return "N64";
+		case CORE_SYSTEM_GBA:
+			return "GBA";
+		case CORE_SYSTEM_SS:
+			return "Saturn";
 		case CORE_SYSTEM_TG16:
 			return cd ? "TGFX16-CD" : "TGFX16";
 	}
