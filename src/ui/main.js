@@ -35,7 +35,7 @@ const SYSTEMS = {
 	},
 	ss: {
 		name: 'Saturn',
-		cores: ['mednafen_saturn_libretro'],
+		cores: ['mednafen', 'mednafen_saturn_libretro'],
 	},
 	ps: {
 		name: 'PlayStation',
