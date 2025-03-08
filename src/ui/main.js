@@ -19,7 +19,7 @@ const SYSTEMS = {
 	},
 	tg16: {
 		name: 'TurboGrafx-16',
-		cores: ['mesen2', 'mednafen_pce_libretro']
+		cores: ['mesen2', 'mednafen', 'mednafen_pce_libretro']
 	},
 	genesis: {
 		name: 'Genesis',
@@ -39,7 +39,7 @@ const SYSTEMS = {
 	},
 	ps: {
 		name: 'PlayStation',
-		cores: ['duckstation', 'mednafen', 'swanstation_libretro']
+		cores: ['mednafen', 'duckstation', 'swanstation_libretro']
 	},
 	n64: {
 		name: 'N64',
@@ -47,7 +47,7 @@ const SYSTEMS = {
 	},
 	gba: {
 		name: 'Game Boy Advance',
-		cores: ['mgba', 'mesen2', 'mgba_libretro']
+		cores: ['mesen2', 'mgba', 'mgba_libretro']
 	},
 };
 
@@ -134,23 +134,15 @@ const MENU_ITEMS = [
 			{label: '125 ms', value: 125},
 			{label: '150 ms', value: 150},
 		]},
-	]},
-	{name: 'Advanced', items: [
-		{name: 'pause', type: 'nstate', etype: 'checkbox', label: 'Pause Emulation', needsRunning: true},
-		{name: 'console', type: 'cfg', etype: 'checkbox', label: 'Console Window'},
-		{etype: 'separator'},
-		{name: 'gfx', type: 'cfg', etype: 'dropdown', label: 'Graphics', opts: [
-			{label: 'OpenGL', value: 1},
-			{label: 'Vulkan', value: 2},
-			{label: 'D3D11', value: 3},
-			{label: 'D3D12', value: 4},
-			{label: 'Metal', value: 5},
-		]},
 		{name: 'playback_rate', type: 'cfg', etype: 'dropdown', label: 'Playback Rate', opts: [
 			{label: '44.1 kHz', value: 44100},
 			{label: '48 kHz', value: 48000},
 			{label: '96 kHz', value: 96000},
 		]},
+	]},
+	{name: 'Advanced', items: [
+		{name: 'pause', type: 'nstate', etype: 'checkbox', label: 'Pause Emulation', needsRunning: true},
+		{name: 'console', type: 'cfg', etype: 'checkbox', label: 'Console Window'},
 		{etype: 'separator'},
 		...systemsToMenu(),
 	]},
