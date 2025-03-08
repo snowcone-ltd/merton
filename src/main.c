@@ -215,10 +215,10 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_CORE(core.genesis, CORE_SYSTEM_GENESIS, "genesis-plus-gx");
 	CFG_GET_CORE(core.gameboy, CORE_SYSTEM_GAMEBOY, "mesen2");
 	CFG_GET_CORE(core.snes, CORE_SYSTEM_SNES, "mesen2");
-	CFG_GET_CORE(core.ss, CORE_SYSTEM_SS, "mednafen_saturn_libretro");
-	CFG_GET_CORE(core.ps, CORE_SYSTEM_PS, "duckstation");
+	CFG_GET_CORE(core.ss, CORE_SYSTEM_SS, "mednafen");
+	CFG_GET_CORE(core.ps, CORE_SYSTEM_PS, "mednafen");
 	CFG_GET_CORE(core.n64, CORE_SYSTEM_N64, "mupen64plus");
-	CFG_GET_CORE(core.gba, CORE_SYSTEM_GBA, "mgba");
+	CFG_GET_CORE(core.gba, CORE_SYSTEM_GBA, "mesen2");
 
 	const MTY_JSON *obj = MTY_JSONObjGetItem(jcfg, "core_options");
 	*core_options = obj ? MTY_JSONDuplicate(obj) : MTY_JSONObjCreate();
@@ -566,8 +566,8 @@ static void main_save_sdata(const char *sdata_subdir, Core *core, const char *co
 	void *sdata = CoreGetSaveData(core, &size);
 	if (sdata) {
 		char *name = MTY_SprintfD("%s.sav", content_name);
-		const char *dir = config_save_dir();
-		const char *path = MTY_JoinPathTL(MTY_JoinPathTL(dir, sdata_subdir), name);
+		const char *dir = MTY_JoinPathTL(config_save_dir(), sdata_subdir);
+		const char *path = MTY_JoinPathTL(dir, name);
 
 		MTY_Mkdir(dir);
 		MTY_WriteFile(path, sdata, size);
