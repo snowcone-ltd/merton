@@ -1387,6 +1387,8 @@ static void *main_render_thread(void *opaque)
 			((!ctx->cfg.bg_pause || MTY_WindowIsActive(ctx->app, ctx->window)) &&
 			(!ctx->cfg.menu_pause || !ctx->ui_visible));
 
+		CorePauseThreads(ctx->core, !active);
+
 		if (active && ctx->core) {
 			CoreRun(ctx->core);
 

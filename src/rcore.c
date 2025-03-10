@@ -700,6 +700,11 @@ void rcore_run(Core *ctx)
 	memcpy(CORE_BUTTONS[0], CORE_BUTTONS[1], sizeof(bool) * CORE_PLAYERS_MAX * CORE_BUTTON_MAX);
 }
 
+void rcore_pause_threads(Core *ctx, bool pause)
+{
+	// TODO
+}
+
 double rcore_get_frame_rate(Core *ctx)
 {
 	if (!ctx)

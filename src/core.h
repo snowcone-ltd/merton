@@ -164,6 +164,12 @@ EXPORT void
 FP(CoreRun)(Core *ctx);
 
 
+// Pause any internal background processing not called during CoreRun
+
+EXPORT void
+FP(CorePauseThreads)(Core *ctx, bool pause);
+
+
 // Get save data to persist on disk
 
 EXPORT void *

@@ -8,6 +8,7 @@ Core *rcore_load_game(CoreSystem system, const char *system_dir, const char *pat
 void rcore_unload_game(Core **core);
 void rcore_reset(Core *ctx);
 void rcore_run(Core *ctx);
+void rcore_pause_threads(Core *ctx, bool pause);
 void rcore_set_button(Core *ctx, uint8_t player, CoreButton button, bool pressed);
 void rcore_set_axis(Core *ctx, uint8_t player, CoreAxis axis, int16_t value);
 void *rcore_get_state(Core *ctx, size_t *size);
