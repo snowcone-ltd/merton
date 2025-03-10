@@ -1,4 +1,4 @@
-`merton` is a work-in-progress emulator frontend for `libretro` built with [`libmatoya`](https://github.com/chrisd1100/libmatoya).
+`merton` is a work-in-progress multi-system emulator frontend build with [`libmatoya`](https://github.com/chrisd1100/libmatoya). It uses a its own [simple interface](https://github.com/snowcone-ltd/merton/blob/main/src/core.h) for interacting with emulator cores in addition to being compatible with the `libretro` API.
 
 <img src='https://user-images.githubusercontent.com/328897/214193293-cc25bdc6-640b-43af-a1ba-ee4deb693be4.png' width=400></img>
 

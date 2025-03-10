@@ -17,6 +17,7 @@ static void loader_set_rcore(void)
 	LOADER_SET_RCORE(CoreUnloadGame, rcore_unload_game);
 	LOADER_SET_RCORE(CoreReset, rcore_reset);
 	LOADER_SET_RCORE(CoreRun, rcore_run);
+	LOADER_SET_RCORE(CorePauseThreads, rcore_pause_threads);
 	LOADER_SET_RCORE(CoreSetButton, rcore_set_button);
 	LOADER_SET_RCORE(CoreSetAxis, rcore_set_axis);
 	LOADER_SET_RCORE(CoreGetState, rcore_get_state);
@@ -52,14 +53,20 @@ bool loader_load(const char *name)
 		return true;
 	}
 
-	#define LOADER_LOAD_SYM(sym) \
-		sym = MTY_SOGetSymbol(LOADER_SO, #sym); \
-		if (!sym) return false
+	#define LOADER_LOAD_SYM(sym) { \
+		void *__tmp = MTY_SOGetSymbol(LOADER_SO, #sym); \
+		if (!__tmp) { \
+			loader_reset(); \
+			return false; \
+		} \
+		sym = __tmp; \
+	}
 
 	LOADER_LOAD_SYM(CoreLoadGame);
 	LOADER_LOAD_SYM(CoreUnloadGame);
 	LOADER_LOAD_SYM(CoreReset);
 	LOADER_LOAD_SYM(CoreRun);
+	LOADER_LOAD_SYM(CorePauseThreads);
 	LOADER_LOAD_SYM(CoreSetButton);
 	LOADER_LOAD_SYM(CoreSetAxis);
 	LOADER_LOAD_SYM(CoreGetState);
