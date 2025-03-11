@@ -139,6 +139,18 @@ static const char *CORE_EXTS[CORE_SYSTEM_MAX] = {
 	[CORE_SYSTEM_TG16]      = ".pce",
 };
 
+static const char *CORE_SDATA_EXTS[CORE_SYSTEM_MAX][3] = {
+	[CORE_SYSTEM_ATARI2600] = {NULL},
+	[CORE_SYSTEM_GAMEBOY]   = {"sav", NULL},
+	[CORE_SYSTEM_GBA]       = {"sav", NULL},
+	[CORE_SYSTEM_GENESIS]   = {"sav", NULL},
+	[CORE_SYSTEM_SMS]       = {"sav", NULL},
+	[CORE_SYSTEM_N64]       = {"eep", "fla", "sra"},
+	[CORE_SYSTEM_NES]       = {"sav", NULL},
+	[CORE_SYSTEM_SNES]      = {"sav", NULL},
+	[CORE_SYSTEM_TG16]      = {"sav", NULL},
+};
+
 static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
 	[MTY_KEY_SEMICOLON] = CORE_BUTTON_B,
 	[MTY_KEY_L]         = CORE_BUTTON_A,
@@ -546,13 +558,22 @@ static const char *main_get_sdata_subdir(CoreSystem system, const char *name)
 	return "Unknown";
 }
 
-static void *main_read_sdata(const char *sdata_subdir, const char *content_name, size_t *size)
+static void *main_read_sdata(CoreSystem system, const char *sdata_subdir, const char *content_name, size_t *size)
 {
-	char *name = MTY_SprintfD("%s.sav", content_name);
+	void *sdata = NULL;
 
-	const char *path = MTY_JoinPathTL(MTY_JoinPathTL(config_save_dir(), sdata_subdir), name);
-	void *sdata = MTY_ReadFile(path, size);
-	MTY_Free(name);
+	for (uint8_t x = 0; x < 3 && !sdata; x++) {
+		const char *ext = CORE_SDATA_EXTS[system][x];
+		if (!ext)
+			break;
+
+		char *name = MTY_SprintfD("%s.%s", content_name, ext);
+		const char *path = MTY_JoinPathTL(MTY_JoinPathTL(config_save_dir(), sdata_subdir), name);
+
+		sdata = MTY_ReadFile(path, size);
+
+		MTY_Free(name);
+	}
 
 	return sdata;
 }
@@ -643,7 +664,7 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 		ctx->defs = main_set_core_options(ctx, core);
 
 		size_t sdata_size = 0;
-		void *sdata = main_read_sdata(sdata_subdir, content_name, &sdata_size);
+		void *sdata = main_read_sdata(system, sdata_subdir, content_name, &sdata_size);
 
 		ctx->core = CoreLoadGame(system, config_system_dir(), name, sdata, sdata_size);
 		MTY_Free(sdata);
