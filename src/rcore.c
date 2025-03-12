@@ -782,7 +782,7 @@ bool rcore_insert_disc(Core *ctx, const char *path)
 	return false;
 }
 
-void *rcore_get_save_data(Core *ctx, size_t *size)
+void *rcore_get_save_data(Core *ctx, size_t *size, CoreSaveDataType *type)
 {
 	if (!ctx)
 		return NULL;

@@ -139,7 +139,7 @@ static const char *CORE_EXTS[CORE_SYSTEM_MAX] = {
 	[CORE_SYSTEM_TG16]      = ".pce",
 };
 
-static const char *CORE_SDATA_EXTS[CORE_SYSTEM_MAX][3] = {
+static const char *CORE_SDATA_SEARCH_EXTS[CORE_SYSTEM_MAX][3] = {
 	[CORE_SYSTEM_ATARI2600] = {NULL},
 	[CORE_SYSTEM_GAMEBOY]   = {"sav", NULL},
 	[CORE_SYSTEM_GBA]       = {"sav", NULL},
@@ -149,6 +149,13 @@ static const char *CORE_SDATA_EXTS[CORE_SYSTEM_MAX][3] = {
 	[CORE_SYSTEM_NES]       = {"sav", NULL},
 	[CORE_SYSTEM_SNES]      = {"sav", NULL},
 	[CORE_SYSTEM_TG16]      = {"sav", NULL},
+};
+
+static const char *CORE_SDATA_EXTS[CORE_SAVE_DATA_MAX] = {
+	[CORE_SAVE_DATA_UNKNOWN]   = "sav",
+	[CORE_SAVE_DATA_EEPROM]    = "eep",
+	[CORE_SAVE_DATA_SRAM]      = "sra",
+	[CORE_SAVE_DATA_FLASH_RAM] = "fla",
 };
 
 static const CoreButton NES_KEYBOARD_MAP[MTY_KEY_MAX] = {
@@ -563,7 +570,7 @@ static void *main_read_sdata(CoreSystem system, const char *sdata_subdir, const 
 	void *sdata = NULL;
 
 	for (uint8_t x = 0; x < 3 && !sdata; x++) {
-		const char *ext = CORE_SDATA_EXTS[system][x];
+		const char *ext = CORE_SDATA_SEARCH_EXTS[system][x];
 		if (!ext)
 			break;
 
@@ -584,9 +591,11 @@ static void main_save_sdata(const char *sdata_subdir, Core *core, const char *co
 		return;
 
 	size_t size = 0;
-	void *sdata = CoreGetSaveData(core, &size);
+	CoreSaveDataType type = CORE_SAVE_DATA_UNKNOWN;
+	void *sdata = CoreGetSaveData(core, &size, &type);
+
 	if (sdata) {
-		char *name = MTY_SprintfD("%s.sav", content_name);
+		char *name = MTY_SprintfD("%s.%s", content_name, CORE_SDATA_EXTS[type]);
 		const char *dir = MTY_JoinPathTL(config_save_dir(), sdata_subdir);
 		const char *path = MTY_JoinPathTL(dir, name);
 

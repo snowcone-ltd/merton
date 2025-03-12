@@ -94,6 +94,14 @@ typedef enum {
 } CoreSettingType;
 
 typedef enum {
+	CORE_SAVE_DATA_UNKNOWN   = 0,
+	CORE_SAVE_DATA_EEPROM    = 1,
+	CORE_SAVE_DATA_SRAM      = 2,
+	CORE_SAVE_DATA_FLASH_RAM = 3,
+	CORE_SAVE_DATA_MAX,
+} CoreSaveDataType;
+
+typedef enum {
 	CORE_SETTING_GROUP_GENERAL  = 0,
 	CORE_SETTING_GROUP_ADVANCED = 1,
 	CORE_SETTING_GROUP_VIDEO    = 2,
@@ -173,7 +181,7 @@ FP(CorePauseThreads)(Core *ctx, bool pause);
 // Get save data to persist on disk
 
 EXPORT void *
-FP(CoreGetSaveData)(Core *ctx, size_t *size);
+FP(CoreGetSaveData)(Core *ctx, size_t *size, CoreSaveDataType *type);
 
 
 // Equivalent to pressing the reset button on the console
