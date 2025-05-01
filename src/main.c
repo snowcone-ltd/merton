@@ -31,11 +31,11 @@
 	#define TLOCAL __thread
 #endif
 
-#if defined(MTN_DEBUG)
+//#if defined(MTN_DEBUG)
 	#define MTN_DEBUG_WEBVIEW true
-#else
-	#define MTN_DEBUG_WEBVIEW false
-#endif
+//#else
+//	#define MTN_DEBUG_WEBVIEW false
+//#endif
 
 static TLOCAL char TLOCAL_STRING[TLOCAL_STRING_SIZE];
 
@@ -702,11 +702,6 @@ static void main_load_game(struct main *ctx, const char *name, bool fetch_core)
 
 // WebView
 
-static bool main_ui_is_steam(void)
-{
-	return MTY_WebViewIsSteam();
-}
-
 static void main_ui_show(MTY_App *app, MTY_Window window, bool show)
 {
 	MTY_WebViewShow(app, window, show);
@@ -725,11 +720,7 @@ static void main_ui_init(MTY_App *app, MTY_Window window)
 		if (dir[x] == '\\')
 			dir[x] = '/';
 
-	// The Steam WebView needs to know about the location of the SO
-	const char *fdir = main_ui_is_steam() ? MTY_JoinPathTL("deps", "steam") :
-		config_tmp_dir();
-
-	MTY_WindowSetWebView(app, window, fdir, MTN_DEBUG_WEBVIEW);
+	MTY_WindowSetWebView(app, window, config_tmp_dir(), MTN_DEBUG_WEBVIEW);
 
 	char *url = NULL;
 
@@ -914,7 +905,7 @@ static void main_post_ui_state(struct main *ctx)
 	MTY_JSONObjSetNumber(nstate, "save-state", ctx->last_save_index);
 	MTY_JSONObjSetNumber(nstate, "load-state", ctx->last_load_index);
 	MTY_JSONObjSetBool(nstate, "has_discs", ctx->cdrom);
-	MTY_JSONObjSetBool(nstate, "allow_window_adjustments", !main_ui_is_steam());
+	MTY_JSONObjSetBool(nstate, "allow_window_adjustments", true);
 
 	char *jmsg = MTY_JSONSerialize(msg);
 	MTY_WebViewSendText(ctx->app, ctx->window, jmsg);
@@ -1141,7 +1132,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				// Console
 				if (evt->cfg.console != ctx->cfg.console) {
 					if (evt->cfg.console) {
-						MTY_OpenConsole(APP_NAME);
+						MTY_OpenConsole(APP_NAME, stdout);
 
 					} else {
 						MTY_CloseConsole();
@@ -1560,14 +1551,15 @@ static bool main_app_func(void *opaque)
 	return ctx->running;
 }
 
-static void main_mty_log_callback(const char *msg, void *opaque)
+static void main_mty_log_callback(uint32_t tag, const char *func, const char *msg, void *opaque)
 {
 	printf("%s\n", msg);
 }
 
 int32_t main(int32_t argc, char **argv)
 {
-	setlocale(LC_ALL, ".utf8");
+	MTY_MakeProcessHighPriority();
+	MTY_SetLocale(".utf8");
 
 	MTY_Mkdir(config_asset_dir());
 
@@ -1581,11 +1573,10 @@ int32_t main(int32_t argc, char **argv)
 	ctx.jcfg = main_load_config(&ctx.cfg, &ctx.core_options);
 
 	if (ctx.cfg.console)
-		MTY_OpenConsole(APP_NAME);
+		MTY_OpenConsole(APP_NAME, stdout);
 
 	ctx.csync = csync_start();
 
-	MTY_SetTimerResolution(1);
 	MTY_SetLogFunc(main_mty_log_callback, NULL);
 
 	ctx.rt_q = MTY_QueueCreate();
@@ -1602,16 +1593,12 @@ int32_t main(int32_t argc, char **argv)
 		ctx.show_ui = true;
 	}
 
-	ctx.app = MTY_AppCreate(0, main_app_func, main_event_func, &ctx);
+	ctx.app = MTY_AppCreate(APP_NAME, 0, main_app_func, main_event_func, &ctx);
 	MTY_AppSetTimeout(ctx.app, 1);
 
 	MTY_Frame frame = ctx.cfg.window;
-	if (frame.size.w == 0) {
+	if (frame.size.w == 0)
 		frame = MTY_MakeDefaultFrame(0, 0, MAIN_WINDOW_W, MAIN_WINDOW_H, 1.0f);
-
-		if (main_ui_is_steam())
-			frame.type = MTY_WINDOW_FULLSCREEN;
-	}
 
 	ctx.window = MTY_WindowCreate(ctx.app, APP_NAME, &frame, 0);
 	if (ctx.window == -1)
@@ -1634,7 +1621,6 @@ int32_t main(int32_t argc, char **argv)
 	except:
 
 	MTY_Free(ctx.cmsg);
-	MTY_RevertTimerResolution(1);
 	MTY_AppDestroy(&ctx.app);
 	MTY_QueueDestroy(&ctx.rt_q);
 	MTY_QueueDestroy(&ctx.mt_q);
@@ -1650,15 +1636,9 @@ int32_t main(int32_t argc, char **argv)
 #if defined(_WIN32)
 
 #include <windows.h>
-#include <combaseapi.h>
 
 int32_t WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int32_t nCmdShow)
 {
-	hInstance; hPrevInstance; lpCmdLine; nCmdShow;
-
-	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
-	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-
 	return main(__argc, __argv);
 }
 #endif

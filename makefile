@@ -67,7 +67,8 @@ LIBS = \
 	imm32.lib \
 	winhttp.lib \
 	crypt32.lib \
-	cabinet.lib
+	cabinet.lib \
+	dwmapi.lib
 
 !IFDEF DEBUG
 FLAGS = $(FLAGS) /Ob0 /Zi /Oy-
