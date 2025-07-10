@@ -1558,7 +1558,7 @@ static void main_mty_log_callback(uint32_t tag, const char *func, const char *ms
 
 int32_t main(int32_t argc, char **argv)
 {
-	MTY_OSInit();
+	MTY_MakeProcessHighPriority();
 	MTY_SetLocale(".utf8");
 
 	MTY_Mkdir(config_asset_dir());
@@ -1577,7 +1577,6 @@ int32_t main(int32_t argc, char **argv)
 
 	ctx.csync = csync_start();
 
-	MTY_SetTimerResolution(1);
 	MTY_SetLogFunc(main_mty_log_callback, NULL);
 
 	ctx.rt_q = MTY_QueueCreate();
@@ -1622,7 +1621,6 @@ int32_t main(int32_t argc, char **argv)
 	except:
 
 	MTY_Free(ctx.cmsg);
-	MTY_RevertTimerResolution(1);
 	MTY_AppDestroy(&ctx.app);
 	MTY_QueueDestroy(&ctx.rt_q);
 	MTY_QueueDestroy(&ctx.mt_q);
