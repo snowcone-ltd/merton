@@ -1,3 +1,5 @@
+#define _DEFAULT_SOURCE // lstat
+
 #include "csync.h"
 
 #include <stdio.h>

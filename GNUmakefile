@@ -19,23 +19,16 @@ FLAGS = \
 	-Wshadow \
 	-Wno-unused-parameter \
 	-Wno-switch \
-	-std=c17 \
-	-fPIC
-
-DEFS = \
-	-D_POSIX_C_SOURCE=200112L
+	-std=c17
 
 ifdef DEBUG
-FLAGS := $(FLAGS) -O0 -g3
+FLAGS += -O0 -g3
 else
-FLAGS := $(FLAGS) -O3 -g0 -flto -fvisibility=hidden
-LD_FLAGS = -flto
+FLAGS += -O3 -g0 -flto -fvisibility=hidden
+LDFLAGS = -flto=auto
 endif
 
-############
 ### WASM ###
-############
-
 # github.com/WebAssembly/wasi-sdk/releases -> ~/wasi-sdk
 
 ifdef WASM
@@ -47,21 +40,20 @@ CC = $(WASI_SDK)/bin/clang
 TARGET = web
 ARCH := wasm32
 
-LD_FLAGS := $(LD_FLAGS) \
+LDFLAGS += \
 	-Wl,--allow-undefined \
 	-Wl,--export-table \
 	-Wl,--import-memory,--export-memory,--max-memory=1073741824 \
 	-Wl,-z,stack-size=$$((8 * 1024 * 1024))
 
-FLAGS := $(FLAGS) \
+FLAGS += \
 	--sysroot=$(WASI_SDK)/share/wasi-sysroot \
 	--target=wasm32-wasi-threads \
 	-pthread
 
 else
-#############
+
 ### LINUX ###
-#############
 ifeq ($(UNAME_S), Linux)
 
 TARGET = linux
@@ -71,14 +63,12 @@ LIBS = \
 	-lc \
 	-lm
 
-LD_FLAGS := $(LD_FLAGS) \
+LDFLAGS += \
 	-nodefaultlibs
 
 endif
 
-#############
 ### APPLE ###
-#############
 ifeq ($(UNAME_S), Darwin)
 
 ifndef TARGET
@@ -90,10 +80,10 @@ ARCH = x86_64
 endif
 
 ifeq ($(TARGET), macosx)
-MIN_VER = 10.15
+MIN_VER = 11.0
 else
 MIN_VER = 13.0
-FLAGS := $(FLAGS) -fembed-bitcode
+FLAGS += -fembed-bitcode
 endif
 
 LIBS = \
@@ -106,12 +96,12 @@ LIBS = \
 	-framework AudioToolbox \
 	-framework WebKit
 
-FLAGS := $(FLAGS) \
+FLAGS += \
 	-m$(TARGET)-version-min=$(MIN_VER) \
 	-isysroot $(shell xcrun --sdk $(TARGET) --show-sdk-path) \
 	-arch $(ARCH)
 
-LD_FLAGS := $(LD_FLAGS) \
+LDFLAGS += \
 	-arch $(ARCH)
 
 endif
@@ -120,7 +110,7 @@ endif
 STATIC_LIBS = \
 	../libmatoya/bin/$(TARGET)/$(ARCH)/libmatoya.a
 
-CFLAGS = $(INCLUDES) $(FLAGS) $(DEFS)
+CFLAGS = $(INCLUDES) $(FLAGS)
 
 all: clean clear zip
 	make objs -j4
@@ -129,12 +119,9 @@ zip:
 	compress/$(TARGET)/$(ARCH)/mcompress ui-zip.h UI_ZIP src/ui
 
 objs: $(OBJS)
-	$(CC) -o $(NAME) $(OBJS) $(STATIC_LIBS) $(LIBS) $(LD_FLAGS)
+	$(CC) -o $(NAME) $(OBJS) $(STATIC_LIBS) $(LIBS) $(LDFLAGS)
 
-###############
 ### ANDROID ###
-###############
-
 # developer.android.com/ndk/downloads -> ~/android-ndk
 
 ifndef ANDROID_NDK_ROOT
