@@ -45,8 +45,8 @@ LINK_FLAGS = \
 LIBS = \
 	..\libmatoya\bin\$(TARGET)\$(ARCH)\matoya.lib \
 	libvcruntime.lib \
-	libucrt.lib \
 	libcmt.lib \
+	ucrt.lib \
 	kernel32.lib \
 	windowscodecs.lib \
 	user32.lib \
@@ -59,12 +59,10 @@ LIBS = \
 	winmm.lib \
 	shcore.lib \
 	bcrypt.lib \
-	userenv.lib \
 	shlwapi.lib \
 	advapi32.lib \
 	ws2_32.lib \
 	gdi32.lib \
-	imm32.lib \
 	winhttp.lib \
 	crypt32.lib \
 	cabinet.lib \
