@@ -1,4 +1,5 @@
 deps/* linguist-vendored
 assets/* linguist-vendored
+src/ui/deps/* linguist-vendored
 
 *.h linguist-language=C

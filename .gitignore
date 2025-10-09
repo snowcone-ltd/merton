@@ -4,13 +4,12 @@
 *.res
 *.o
 
-.vs/
-rom/
-
 /ui-zip.h
 
 /merton-files
+/games
 /ul
+/.vs
 
 /merton
 /merton.exe
