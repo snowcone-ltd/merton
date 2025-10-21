@@ -185,6 +185,7 @@ static const MTY_CAxis AXIS_MAP[CORE_AXIS_MAX] = {
 
 static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_options)
 {
+	double dval = 0;
 	struct config cfg = {0};
 
 	if (*core_options)
@@ -194,10 +195,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 		if (!MTY_JSONObjGetBool(jcfg, #name, &cfg.name)) cfg.name = def
 
 	#define CFG_GET_INT(name, def) \
-		if (!MTY_JSONObjGetInt(jcfg, #name, &cfg.name)) cfg.name = def
-
-	#define CFG_GET_UINT(name, def) \
-		if (!MTY_JSONObjGetInt(jcfg, #name, (int32_t *) &cfg.name)) cfg.name = def
+		if (!MTY_JSONObjGetNumber(jcfg, #name, &dval)) cfg.name = def; else cfg.name = lrint(dval)
 
 	#define CFG_GET_STR(name, size, def) \
 		if (!MTY_JSONObjGetString(jcfg, #name, cfg.name, size)) snprintf(cfg.name, size, "%s", def);
@@ -212,15 +210,15 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_BOOL(mute, false);
 	CFG_GET_BOOL(square_pixels, false);
 	CFG_GET_BOOL(int_scaling, false);
-	CFG_GET_UINT(filter, MTY_FILTER_LINEAR);
-	CFG_GET_UINT(audio_buffer, 75);
-	CFG_GET_UINT(playback_rate, 48000);
-	CFG_GET_UINT(scanlines, 70);
-	CFG_GET_UINT(sharpen, 0);
+	CFG_GET_INT(filter, MTY_FILTER_LINEAR);
+	CFG_GET_INT(audio_buffer, 75);
+	CFG_GET_INT(playback_rate, 48000);
+	CFG_GET_INT(scanlines, 70);
+	CFG_GET_INT(sharpen, 0);
 	CFG_GET_INT(vsync, -1); // Auto
-	CFG_GET_UINT(window.type, MTY_WINDOW_NORMAL);
-	CFG_GET_UINT(window.size.w, 0);
-	CFG_GET_UINT(window.size.h, 0);
+	CFG_GET_INT(window.type, MTY_WINDOW_NORMAL);
+	CFG_GET_INT(window.size.w, 0);
+	CFG_GET_INT(window.size.h, 0);
 	CFG_GET_INT(window.x, 0);
 	CFG_GET_INT(window.y, 0);
 	CFG_GET_STR(window.screen, MTY_SCREEN_MAX, "");
@@ -893,7 +891,7 @@ static void main_post_ui_state(struct main *ctx)
 
 		for (uint32_t y = 0; y < s->nopts; y++) {
 			const char *item = s->opts[y];
-			MTY_JSONArraySetString(opt_list, y, item);
+			MTY_JSONArraySetItem(opt_list, y, MTY_JSONStringCreate(item));
 		}
 	}
 
@@ -922,6 +920,7 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 
 	#define JBUF_SIZE 128
 
+	double dval = 0;
 	char jbuf[JBUF_SIZE];
 	if (!MTY_JSONObjGetString(j, "type", jbuf, JBUF_SIZE))
 		goto except;
@@ -1004,16 +1003,20 @@ static void main_handle_ui_event(struct main *ctx, const char *text)
 		} else if (!strcmp(jbuf, "save-state")) {
 			struct app_event evt = {.type = APP_EVENT_SAVE_STATE, .rt = true};
 
-			if (!MTY_JSONObjGetInt8(j, "value", (int8_t *) &evt.state_index))
+			if (!MTY_JSONObjGetNumber(j, "value", &dval))
 				goto except;
+
+			evt.state_index = (int8_t) dval;
 
 			main_push_app_event(&evt, ctx);
 
 		} else if (!strcmp(jbuf, "load-state")) {
 			struct app_event evt = {.type = APP_EVENT_LOAD_STATE, .rt = true};
 
-			if (!MTY_JSONObjGetInt8(j, "value", (int8_t *) &evt.state_index))
+			if (!MTY_JSONObjGetNumber(j, "value", &dval))
 				goto except;
+
+			evt.state_index = (int8_t) dval;
 
 			main_push_app_event(&evt, ctx);
 
