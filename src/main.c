@@ -1469,10 +1469,8 @@ static void main_core_controller(Core *core, uint8_t player, const MTY_Controlle
 		CoreSetAxis(core, player, x, c->axes[AXIS_MAP[x]]);
 }
 
-static void main_event_func(const MTY_Event *evt, void *opaque)
+static void main_event_func(struct main *ctx, const MTY_Event *evt)
 {
-	struct main *ctx = opaque;
-
 	bool toggle_menu = false;
 
 	switch (evt->type) {
@@ -1545,18 +1543,6 @@ static void main_event_func(const MTY_Event *evt, void *opaque)
 
 static bool main_app_func(void *opaque)
 {
-	struct main *ctx = opaque;
-
-	ctx->ui_visible = main_ui_visible(ctx->app, ctx->window);
-
-	main_poll_app_events(ctx, ctx->mt_q);
-
-	return ctx->running;
-}
-
-static void main_mty_log_callback(uint32_t tag, const char *func, const char *msg, void *opaque)
-{
-	printf("%s\n", msg);
 }
 
 int32_t main(int32_t argc, char **argv)
@@ -1580,7 +1566,7 @@ int32_t main(int32_t argc, char **argv)
 
 	ctx.csync = csync_start();
 
-	MTY_SetLogFunc(main_mty_log_callback, NULL);
+	MTY_SetLogMode(MTY_LOG_MODE_STDOUT);
 
 	ctx.rt_q = MTY_QueueCreate();
 	ctx.mt_q = MTY_QueueCreate();
@@ -1596,8 +1582,7 @@ int32_t main(int32_t argc, char **argv)
 		ctx.show_ui = true;
 	}
 
-	ctx.app = MTY_AppCreate(APP_NAME, 0, main_app_func, main_event_func, &ctx);
-	MTY_AppSetTimeout(ctx.app, 1);
+	ctx.app = MTY_AppCreate(APP_NAME, MTY_APP_FLAG_CONTROLLER);
 
 	MTY_Frame frame = ctx.cfg.window;
 	if (frame.size.w == 0)
@@ -1613,7 +1598,16 @@ int32_t main(int32_t argc, char **argv)
 
 	MTY_Thread *rt = MTY_ThreadCreate(main_render_thread, &ctx);
 	MTY_Thread *at = MTY_ThreadCreate(main_audio_thread, &ctx);
-	MTY_AppRun(ctx.app);
+
+	while (ctx.running) {
+		for (MTY_Event evt; MTY_AppGetEvent(ctx.app, 1, &evt);)
+			main_event_func(&ctx, &evt);
+
+		ctx.ui_visible = main_ui_visible(ctx.app, ctx.window);
+
+		main_poll_app_events(&ctx, ctx.mt_q);
+	}
+
 	MTY_ThreadDestroy(&at);
 	MTY_ThreadDestroy(&rt);
 
