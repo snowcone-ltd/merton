@@ -71,7 +71,6 @@ static const char *csync_get_platform(void)
 		case MTY_OS_MACOS:   return "macosx";
 		case MTY_OS_ANDROID: return "android";
 		case MTY_OS_LINUX:   return "linux";
-		case MTY_OS_WEB:     return "web";
 		case MTY_OS_IOS:     return "ios";
 		case MTY_OS_TVOS:    return "tvos";
 	}

@@ -1582,7 +1582,7 @@ int32_t main(int32_t argc, char **argv)
 		ctx.show_ui = true;
 	}
 
-	ctx.app = MTY_AppCreate(APP_NAME, MTY_APP_FLAG_CONTROLLER);
+	ctx.app = MTY_AppCreate(APP_NAME, NULL, MTY_APP_FLAG_CONTROLLER);
 
 	MTY_Frame frame = ctx.cfg.window;
 	if (frame.size.w == 0)

@@ -46,10 +46,12 @@ int32_t main(int32_t argc, char **argv)
 		MTY_FileDesc *desc = &list->files[x];
 
 		if (!desc->dir) {
-			const char *path = MTY_JoinPath(src, desc->name);
+			char *path = MTY_JoinPath(src, desc->name);
 
 			size_t inSize = 0;
 			void *in = MTY_ReadFile(path, &inSize);
+
+			MTY_Free(path);
 
 			if (in) {
 				size_t outSize = 0;
