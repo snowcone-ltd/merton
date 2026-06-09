@@ -1541,10 +1541,6 @@ static void main_event_func(struct main *ctx, const MTY_Event *evt)
 	}
 }
 
-static bool main_app_func(void *opaque)
-{
-}
-
 int32_t main(int32_t argc, char **argv)
 {
 	MTY_MakeProcessHighPriority();
