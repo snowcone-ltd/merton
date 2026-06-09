@@ -1,5 +1,5 @@
+ARCH = %%VSCMD_ARG_TGT_ARCH%%
 TARGET = windows
-ARCH = %%Platform%%
 BIN = merton.exe
 
 OBJS = \
