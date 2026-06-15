@@ -215,7 +215,7 @@ static struct config main_parse_config(const MTY_JSON *jcfg, MTY_JSON **core_opt
 	CFG_GET_INT(playback_rate, 48000);
 	CFG_GET_INT(scanlines, 70);
 	CFG_GET_INT(sharpen, 0);
-	CFG_GET_INT(vsync, -1); // Auto
+	CFG_GET_INT(vsync, 0);
 	CFG_GET_INT(window.type, MTY_WINDOW_NORMAL);
 	CFG_GET_INT(window.size.w, 0);
 	CFG_GET_INT(window.size.h, 0);
@@ -1107,15 +1107,6 @@ static void main_push_app_event(const struct app_event *evt, void *opaque)
 	}
 }
 
-static void main_update_interval(struct main *ctx, int32_t vsync)
-{
-	// Auto setting
-	if (vsync < 0)
-		vsync = lrint((MTY_WindowGetRefreshRate(ctx->app, ctx->window) / 60.0) * 100.0);
-
-	MTY_WindowSetSyncInterval(ctx->app, ctx->window, vsync);
-}
-
 static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 {
 	for (struct app_event *evt = NULL; MTY_QueueGetOutputBuffer(q, 0, (void **) &evt, NULL);) {
@@ -1157,7 +1148,7 @@ static void main_poll_app_events(struct main *ctx, MTY_Queue *q)
 				ctx->running = false;
 				break;
 			case APP_EVENT_GFX:
-				main_update_interval(ctx, evt->vsync);
+				MTY_WindowSetSyncInterval(ctx->app, ctx->window, evt->vsync);
 				break;
 			case APP_EVENT_PAUSE:
 				ctx->paused = !ctx->paused;
@@ -1390,7 +1381,7 @@ static void *main_render_thread(void *opaque)
 {
 	struct main *ctx = opaque;
 
-	main_update_interval(ctx, ctx->cfg.vsync);
+	MTY_WindowSetSyncInterval(ctx->app, ctx->window, ctx->cfg.vsync);
 	main_render_dummy(ctx);
 
 	MTY_Time stamp = MTY_GetTime();
